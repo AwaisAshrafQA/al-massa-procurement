@@ -1,0 +1,24 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# dependencies and builds
+node_modules/
+dist/
+.vercel/
+
+# supabase local files
+supabase/.temp/
+supabase/.branches/
+
+# editor / OS
+.DS_Store
+Thumbs.db
+*.log
+
+# local tooling
+.claude/
+
+# demo recordings
+demo/
