@@ -166,7 +166,7 @@ export function StatTile({ label, value, decimals = 0, unit, sub, icon, tone = "
     violet: "from-violet-400 to-violet-600 shadow-violet-500/30",
   }[tone];
   return (
-    <Card className={cn("lift group relative animate-fade-up p-4", onClick && "cursor-pointer focus-within:ring-2 focus-within:ring-brand-500")} style={{ animationDelay: `${delay}ms` }}>
+    <Card className={cn("lift group relative animate-fade-up p-3 min-[380px]:p-4", onClick && "cursor-pointer focus-within:ring-2 focus-within:ring-brand-500")} style={{ animationDelay: `${delay}ms` }}>
       <div
         className="flex items-start justify-between gap-2 outline-none"
         role={onClick ? "button" : undefined}
@@ -174,10 +174,10 @@ export function StatTile({ label, value, decimals = 0, unit, sub, icon, tone = "
         aria-label={onClick ? tr("{label}: show requests", { label }) : undefined}
         onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
       >
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-        <div className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-lg", tones)}>{icon}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 min-[380px]:text-xs">{label}</div>
+        <div className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-lg min-[380px]:h-9 min-[380px]:w-9", tones)}>{icon}</div>
       </div>
-      <div className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
+      <div className="mt-2 text-[1.65rem] font-extrabold tracking-tight text-slate-900 min-[380px]:text-3xl">
         {Number.isFinite(value) ? shown : "—"}
         {unit && Number.isFinite(value) && <span className="ms-1 text-base font-semibold text-slate-500">{unit}</span>}
       </div>
@@ -226,8 +226,8 @@ export function TrendChip({ now, prev, goodWhen, label }: { now: number; prev: n
   const up = pct > 0;
   const good = (up && goodWhen === "up") || (!up && goodWhen === "down");
   return (
-    <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-bold", good ? "bg-emerald-50 text-[#006300]" : "bg-rose-50 text-rose-700")}>
-      {up ? "↑" : "↓"} {Math.abs(pct)}% <span className="font-medium opacity-80">{label}</span>
+    <span className={cn("inline-flex flex-wrap items-center gap-x-1 rounded-full px-1.5 py-0.5 text-xs font-bold", good ? "bg-emerald-50 text-[#006300]" : "bg-rose-50 text-rose-700")}>
+      <span className="whitespace-nowrap">{up ? "↑" : "↓"} {Math.abs(pct)}%</span> <span className="whitespace-nowrap font-medium opacity-80">{label}</span>
     </span>
   );
 }

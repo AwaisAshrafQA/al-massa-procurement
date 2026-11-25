@@ -162,15 +162,19 @@ export type HeaderInput = {
 export async function saveRequest(id: string | null, header: HeaderInput, lines: Line[]): Promise<string> {
   let requestId = id;
   if (requestId) {
-    const { error } = await supabase.from("purchase_requests").update(header).eq("id", requestId);
+    const { data, error } = await supabase.from("purchase_requests").update(header).eq("id", requestId).select("id");
     if (error) throw error;
+    // RLS makes the update a silent no-op once the request has moved on (e.g. Procurement acted).
+    if (!data?.length) throw new Error("This request can no longer be edited. It may have been sent or changed by someone else. Reload to see its current state.");
   } else {
     const { data, error } = await supabase.from("purchase_requests").insert(header).select("id").single();
     if (error) throw error;
     requestId = data.id as string;
   }
-  const del = await supabase.from("request_lines").delete().eq("request_id", requestId);
-  if (del.error) throw del.error;
+  // Insert the new lines first and delete the old ones only after that worked, so a failed
+  // save never leaves the request without lines.
+  const old = await supabase.from("request_lines").select("id").eq("request_id", requestId);
+  if (old.error) throw old.error;
   if (lines.length) {
     const { error } = await supabase.from("request_lines").insert(
       lines.map((l, i) => ({
@@ -185,6 +189,11 @@ export async function saveRequest(id: string | null, header: HeaderInput, lines:
       })),
     );
     if (error) throw error;
+  }
+  const oldIds = (old.data ?? []).map((l) => l.id as string);
+  if (oldIds.length) {
+    const del = await supabase.from("request_lines").delete().in("id", oldIds);
+    if (del.error) throw del.error;
   }
   return requestId!;
 }

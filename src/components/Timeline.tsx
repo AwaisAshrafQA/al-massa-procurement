@@ -44,7 +44,7 @@ export function Timeline({ entries, createdAt }: { entries: TimelineEntry[]; cre
               {e.acted_as && <> · {e.acted_as === "admin" ? <span className="font-semibold text-rose-700">{t("as Admin")}</span> : t(ROLE_LABEL[e.acted_as])}</>}
               {" · "}{fmtDateTime(e.created_at)}
             </div>
-            {e.comment && <p className="mt-1.5 whitespace-pre-line rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700 ring-1 ring-inset ring-slate-200">{e.comment}</p>}
+            {e.comment && <p className="mt-1.5 whitespace-pre-line rounded-lg [overflow-wrap:anywhere] bg-slate-50 px-3 py-2 text-sm text-slate-700 ring-1 ring-inset ring-slate-200">{e.comment}</p>}
           </li>
         );
       })}

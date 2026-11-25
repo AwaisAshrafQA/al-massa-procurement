@@ -116,7 +116,8 @@ export function ActionBar({ request }: { request: RequestDetail }) {
             key={a.key}
             variant={a.variant}
             loading={busy === a.key}
-            className="flex-1 sm:flex-none"
+            // wrap onto a new row instead of squeezing labels onto three lines on narrow phones
+            className="flex-auto whitespace-nowrap sm:flex-none"
             onClick={() => {
               setError(null);
               if (a.kind === "edit") return nav(`/requests/${request.id}/edit`);

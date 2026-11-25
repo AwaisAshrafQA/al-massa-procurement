@@ -43,24 +43,27 @@ export function MyRequests() {
         }
       />
 
-      <div className="flex animate-fade-up flex-wrap gap-2" style={{ animationDelay: "60ms" }}>
-        <div className="inline-flex rounded-xl bg-slate-200/60 p-1 text-sm font-semibold" role="tablist">
+      {/* Phones: tabs full width, the two filters side by side below. Wider: one row. */}
+      <div className="flex animate-fade-up flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center" style={{ animationDelay: "60ms" }}>
+        <div className="flex rounded-xl bg-slate-200/60 p-1 text-sm font-semibold sm:inline-flex" role="tablist">
           {(["mine", "all"] as const).map((s) => (
             <button key={s} role="tab" aria-selected={scope === s} onClick={() => setScope(s)}
-              className={cn("rounded-lg px-3 py-1.5 transition-all", scope === s ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>
+              className={cn("flex-1 whitespace-nowrap rounded-lg px-2.5 py-1.5 transition-all sm:flex-none sm:px-3", scope === s ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>
               {s === "mine" ? t("Raised by me") : t("All on my projects")}
             </button>
           ))}
         </div>
-        <Select value={project} onChange={(e) => setProject(e.target.value)} className="w-auto min-w-36 py-2" aria-label={t("Filter by project")}>
+        <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-2 sm:flex">
+        <Select value={project} onChange={(e) => setProject(e.target.value)} className="min-w-0 py-2 sm:w-auto sm:min-w-36" aria-label={t("Filter by project")}>
           <option value="">{t("All projects")}</option>
           {myProjects.map((p) => <option key={p.id} value={p.id}>{p.project_no} · {p.name}</option>)}
         </Select>
-        <Select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} className="w-auto min-w-36 py-2" aria-label={t("Filter by status")}>
+        <Select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} className="min-w-0 py-2 sm:w-auto sm:min-w-36" aria-label={t("Filter by status")}>
           <option value="open">{t("Open")}</option>
           <option value="">{t("All statuses")}</option>
           {(Object.keys(STATUS_LABEL) as Status[]).map((s) => <option key={s} value={s}>{t(STATUS_LABEL[s])}</option>)}
         </Select>
+        </div>
       </div>
 
       {requests.isLoading ? <ListSkeleton /> : requests.error ? (

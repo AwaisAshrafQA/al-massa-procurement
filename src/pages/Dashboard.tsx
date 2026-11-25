@@ -90,8 +90,8 @@ export function Dashboard() {
 
       {/* Projects + map */}
       {m && projects.data && (
-        <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
-          <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <div className="grid grid-cols-1 content-start gap-3 md:grid-cols-2 lg:grid-cols-1">
             {projectCards.map((c, i) => (
               <Card key={c.p.id} className="lift animate-fade-up p-0" style={stagger(i + 6, 60)}>
                 <button type="button" className="block w-full rounded-2xl p-4 text-start focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500"
@@ -130,7 +130,7 @@ export function Dashboard() {
 
       {/* Charts */}
       {m && (
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <ChartCard title={t("Requests sent per day")} subtitle={t("Last 14 days")} delay={320}
             table={{ head: [t("Day"), t("Sent")], rows: m.perDay.map((d) => [d.label, String(d.value)]) }}>
             <ColumnChart data={m.perDay} onSelect={(i) => setDrill({ title: t("Requests sent on {day}", { day: m.perDay[i].label }), drill: m.perDay[i].drill })} />

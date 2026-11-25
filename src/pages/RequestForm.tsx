@@ -67,7 +67,7 @@ export function RequestForm() {
     const q = Number(normaliseDigits(l.qtyText));
     return {
       item: !l.item_id && !(l.description ?? "").trim(),
-      qty: !l.qtyText.trim() || !(q > 0),
+      qty: !l.qtyText.trim() || !(q > 0 && q < 1e9), // DB column is numeric(12,3)
       unit: !l.unit,
     };
   });
@@ -88,9 +88,17 @@ export function RequestForm() {
     setError(null);
     if (send && !valid) return;
     if (!send && !projectId) return; // a draft needs at least a project
+    // A draft may skip lines that are still completely empty, but never silently drops a line
+    // the user has started: those must be finished or removed first.
+    const untouched = (l: Draft) => !l.item_id && !(l.description ?? "").trim() && !l.qtyText.trim();
+    const lineBad = (i: number) => lineErrors[i].item || lineErrors[i].unit || lineErrors[i].qty;
+    if (!send && lines.some((l, i) => !untouched(l) && lineBad(i))) {
+      setError(t("Finish or remove the highlighted lines before saving."));
+      return;
+    }
     setBusy(send ? "send" : "save");
     try {
-      const keep = send ? lines : lines.filter((_l, i) => !lineErrors[i].item && !lineErrors[i].unit && !lineErrors[i].qty);
+      const keep = send ? lines : lines.filter((l) => !untouched(l));
       const savedId = await saveRequest(
         id ?? null,
         {
@@ -149,7 +157,7 @@ export function RequestForm() {
             {myProjects.map((p) => <option key={p.id} value={p.id}>{p.project_no} · {p.name}{p.location ? ` (${p.location})` : ""}</option>)}
           </Select>
         </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t("Required on site by")} htmlFor="rdate" required error={tried ? errors.date : null}>
             <Input id="rdate" type="date" min={today} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} />
           </Field>
@@ -214,7 +222,7 @@ export function RequestForm() {
                   </Select>
                 </Field>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label={t("Size / spec / brand")} htmlFor={`s-${l.key}`}>
                   <Input id={`s-${l.key}`} value={l.size_spec ?? ""} onChange={(ev) => update(l.key, { size_spec: ev.target.value })} />
                 </Field>

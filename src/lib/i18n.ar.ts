@@ -334,6 +334,8 @@ export const AR: Record<string, string> = {
   "Requests sent on {day}": "الطلبات المرسلة في {day}",
   "Time spent at this step": "الوقت المستغرق في هذه المرحلة",
   "at this step": "في هذه المرحلة",
+  "This request can no longer be edited. It may have been sent or changed by someone else. Reload to see its current state.": "لم يعد بالإمكان تعديل هذا الطلب. ربما أُرسل أو عدّله شخص آخر. أعد التحميل لرؤية حالته الحالية.",
+  "Finish or remove the highlighted lines before saving.": "أكمل الأسطر المظللة أو احذفها قبل الحفظ.",
 };
 
 /** Database messages built from parts (see _require_status, _require_comment, _not_own_request). */

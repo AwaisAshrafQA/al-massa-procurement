@@ -1,6 +1,7 @@
 import { clsx } from "clsx";
 import { Loader2, X } from "lucide-react";
 import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 import { translate } from "@/lib/i18n";
 
@@ -42,7 +43,7 @@ export function Input({ className, ...p }: InputHTMLAttributes<HTMLInputElement>
   return <input {...p} className={cn(field, className)} />;
 }
 export function Select({ className, children, ...p }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...p} className={cn(field, "pr-8", className)}>{children}</select>;
+  return <select {...p} className={cn(field, "pe-8", className)}>{children}</select>;
 }
 export function Textarea({ className, ...p }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...p} className={cn(field, className)} />;
@@ -126,13 +127,17 @@ export function Dialog({ open, onClose, title, children }: { open: boolean; onCl
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
   }, [open, onClose]);
   if (!open) return null;
-  return (
+  // Portal to <body>: page containers animate with transforms, which would trap the sheet
+  // underneath the fixed bottom nav on phones.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 animate-fade-in bg-slate-900/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-full max-w-md animate-sheet-up rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-2xl sm:animate-scale-in sm:rounded-3xl">
+      <div className="relative max-h-[92dvh] w-full max-w-md animate-sheet-up overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-2xl sm:animate-scale-in sm:rounded-3xl">
         <div className="mx-auto -mt-2 mb-3 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden" aria-hidden />
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-lg font-bold tracking-tight">{title}</h2>
@@ -142,6 +147,7 @@ export function Dialog({ open, onClose, title, children }: { open: boolean; onCl
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -66,7 +66,7 @@ export function RequestDetail() {
 
       <ActionBar request={r} />
 
-      <div className="grid animate-fade-up gap-5 lg:grid-cols-[1fr_22rem]" style={{ animationDelay: "120ms" }}>
+      <div className="grid animate-fade-up grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]" style={{ animationDelay: "120ms" }}>
         <div className="space-y-5">
           <Card className="p-4">
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">

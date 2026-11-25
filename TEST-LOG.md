@@ -138,3 +138,35 @@ Every number on the Overview can be clicked to list the requests behind it (bott
 | Columns: Requests sent per day (13 non-empty days) | each column's value matches its panel count |
 | Project card 155 Villa Complex | 29 total = 29 listed |
 | Tapping a request in the panel | opens that request and closes the panel |
+
+## 10. Bug hunt and edge cases, 26 Nov 2026
+
+New suite `tests/edge.test.ts` (16 tests) plus browser check `scripts/save-check.ts` (3 checks). Full API suite now **61 / 61 pass**; role check 20/20 and drill-down check all pass on the live site.
+
+| # | Bug found | Fix | Proof |
+|---|---|---|---|
+| 1 | Mandatory comments (return, reject, cancel) accepted a comment that was only a newline or tab when the API was called directly; `btrim()` only strips spaces. Same gap for the urgent reason and line descriptions. | Migration `20261126000006_blank_text.sql`: `_clean()` trims all whitespace; comment check uses it; triggers clean request, line, approval and receipt text on write. | edge tests: 5 blank variants refused for return, PM reject/return and cancel; blank line description refused; real comment stored trimmed |
+| 2 | Saving an edited request deleted all lines before inserting the new ones; a failed insert left the request with no lines. | `saveRequest` inserts new lines first, then deletes the old ones by id. | save-check 1 and 2 |
+| 3 | Saving after someone else had moved the request on showed "Saved" but changed nothing (RLS made the update a silent no-op). | Update now checks a row changed; otherwise shows "This request can no longer be edited…". | save-check 3 |
+| 4 | "Save draft" silently removed any line with a mistake (e.g. a bad quantity). | Only completely empty lines are skipped; a started but incomplete line blocks the save and is highlighted. | save-check 2 |
+| 5 | A quantity above the database limit (999,999,999.999) gave a raw "numeric field overflow" error. | Form checks the limit. | save-check 2 |
+
+Also verified, no change needed: double-clicks and simultaneous actions (two approvals, two receipts, two sends) never create a second decision, receipt or number; requesters cannot edit after sending, move a draft to a project they are not on, or write status, numbers or approvals directly; delivery date today accepted, yesterday refused.
+
+## 11. Responsiveness sweep (`scripts/responsive-check.ts`), 26 Nov 2026
+
+Every screen and the main pop-ups (drill-down, search, notifications, account menu, return and order sheets) were checked at 320, 375, 414, 768, 1024 and 1440 px, in English and Arabic. The script flags any page or element that sticks out sideways; screen-sized captures (`scripts/viewport-shots.ts`) were reviewed by eye.
+
+| # | Issue found | Fix |
+|---|---|---|
+| 1 | Overview on phones was ~410 px wide, so the whole page scrolled sideways (320–414 px, both languages). | Grids get an explicit `minmax(0,1fr)` column on phones (Overview, request page, request form). |
+| 2 | On phones the bottom nav covered the action sheets (Save hidden on "Record supplier & delivery" and "Return to site") and the drill-down panel. | Sheets and the drill-down panel render at page level (portal), with scroll lock and a height cap so tall sheets scroll. |
+| 3 | Request page action buttons squeezed labels onto three lines at 320 px. | Buttons keep one line and wrap to a new row instead. |
+| 4 | Drill-down rows at 320 px: request number broke over two lines and the "Needed" date overlapped the status badge. | Number never breaks; on phones the date moves under the row text. |
+| 5 | Request timeline was 5 px too wide at 320 px; long unbroken comments could overflow. | Grid fix above, and comments wrap anywhere if needed. |
+| 6 | My requests at 320 px: both tab labels wrapped and the two filters had different widths. | Tabs full width on one line; filters side by side in a grid. |
+| 7 | KPI tiles cramped at 320 px; the "↑ 142% vs last week" chip split in the middle. | Slightly tighter tiles below 380 px; the chip keeps "↑ 142%" together. |
+| 8 | Tablet (768 px) Overview showed project cards one per row across the full width. | Two per row on tablets. |
+| 9 | Dropdown arrow padding was on the wrong side in Arabic. | Logical padding (`pe-8`). |
+
+After the fixes: 170 screens (17 per width × 5 widths × 2 languages), 0 with sideways overflow. Drill-down and save checks still pass.
