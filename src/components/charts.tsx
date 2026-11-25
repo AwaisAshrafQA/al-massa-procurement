@@ -1,6 +1,6 @@
 // Small, dependency-free charts. Single-series, one hue (viz blue), thin marks with
 // 4px rounded data-ends, recessive grid, hover/focus tooltips and a table view.
-import { Table2, BarChart3 } from "lucide-react";
+import { BarChart3, ChevronRight, Table2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { translate as tr } from "@/lib/i18n";
 import { useCountUp } from "@/lib/motion";
@@ -46,10 +46,12 @@ export function ChartCard({ title, subtitle, children, table, className, delay =
 }
 
 /** Horizontal bars with direct value labels; tooltip on hover/focus. */
-export function BarList({ data, format = (v) => String(v), tooltip }: {
+export function BarList({ data, format = (v) => String(v), tooltip, onSelect }: {
   data: { label: string; value: number }[];
   format?: (v: number) => string;
   tooltip?: (d: { label: string; value: number }, share: number) => string;
+  /** Called with the row index when a bar is clicked / activated (drill-down). */
+  onSelect?: (index: number) => void;
 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   const total = data.reduce((a, d) => a + d.value, 0) || 1;
@@ -60,13 +62,21 @@ export function BarList({ data, format = (v) => String(v), tooltip }: {
         <li
           key={d.label}
           tabIndex={0}
+          role={onSelect ? "button" : undefined}
+          aria-label={onSelect ? tr("{label}: {value}. Show requests", { label: d.label, value: format(d.value) }) : undefined}
+          onClick={onSelect && d.value > 0 ? () => onSelect(i) : undefined}
+          onKeyDown={onSelect && d.value > 0 ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(i); } } : undefined}
           onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
           onFocus={() => setHover(i)} onBlur={() => setHover(null)}
-          className="relative rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          className={cn("relative -mx-2 rounded-lg px-2 py-1 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-500",
+            onSelect && d.value > 0 && "cursor-pointer hover:bg-slate-50")}
         >
           <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
             <span className={cn("truncate text-slate-600", hover === i && "text-slate-900")}>{d.label}</span>
-            <span className="font-semibold tabular-nums text-slate-900">{format(d.value)}</span>
+            <span className="flex items-center gap-1 font-semibold tabular-nums text-slate-900">
+              {format(d.value)}
+              {onSelect && <ChevronRight className={cn("h-3.5 w-3.5 text-slate-300 transition-opacity rtl:rotate-180", hover === i ? "opacity-100" : "opacity-0")} aria-hidden />}
+            </span>
           </div>
           <div className="h-2 w-full rounded" style={{ background: "var(--viz-track)" }}>
             <div
@@ -76,7 +86,7 @@ export function BarList({ data, format = (v) => String(v), tooltip }: {
           </div>
           {hover === i && tooltip && (
             <div className="pointer-events-none absolute -top-9 end-0 z-10 animate-fade-in whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg">
-              {tooltip(d, d.value / total)}
+              {tooltip(d, d.value / total)}{onSelect && d.value > 0 ? ` · ${tr("click for details")}` : ""}
             </div>
           )}
         </li>
@@ -86,7 +96,7 @@ export function BarList({ data, format = (v) => String(v), tooltip }: {
 }
 
 /** Vertical columns over time; recessive gridlines; tooltip per column. */
-export function ColumnChart({ data, height = 150 }: { data: { label: string; value: number }[]; height?: number }) {
+export function ColumnChart({ data, height = 150, onSelect }: { data: { label: string; value: number }[]; height?: number; onSelect?: (index: number) => void }) {
   const [hover, setHover] = useState<number | null>(null);
   const maxRaw = Math.max(1, ...data.map((d) => d.value));
   const max = Math.max(2, Math.ceil(maxRaw / 2) * 2);
@@ -109,7 +119,8 @@ export function ColumnChart({ data, height = 150 }: { data: { label: string; val
               <button
                 key={d.label}
                 type="button"
-                className="group relative flex h-full flex-1 items-end justify-center outline-none"
+                className={cn("group relative flex h-full flex-1 items-end justify-center outline-none", onSelect && d.value > 0 ? "cursor-pointer" : "cursor-default")}
+                onClick={onSelect && d.value > 0 ? () => onSelect(i) : undefined}
                 onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
                 onFocus={() => setHover(i)} onBlur={() => setHover(null)}
                 aria-label={tr("{day}: {n} sent", { day: d.label, n: d.value })}
@@ -125,7 +136,7 @@ export function ColumnChart({ data, height = 150 }: { data: { label: string; val
                 />
                 {hover === i && (
                   <span className="pointer-events-none absolute bottom-full z-10 mb-1 animate-fade-in whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg">
-                    {tr("{day}: {n} sent", { day: d.label, n: d.value })}
+                    {tr("{day}: {n} sent", { day: d.label, n: d.value })}{onSelect && d.value > 0 ? ` · ${tr("click for details")}` : ""}
                   </span>
                 )}
               </button>
@@ -143,9 +154,9 @@ export function ColumnChart({ data, height = 150 }: { data: { label: string; val
 }
 
 /** KPI tile with a count-up number. */
-export function StatTile({ label, value, decimals = 0, unit, sub, icon, tone = "brand", delay = 0, spark }: {
+export function StatTile({ label, value, decimals = 0, unit, sub, icon, tone = "brand", delay = 0, spark, onClick }: {
   label: string; value: number; decimals?: number; unit?: string; sub?: ReactNode; icon: ReactNode;
-  tone?: "brand" | "accent" | "rose" | "violet"; delay?: number; spark?: number[];
+  tone?: "brand" | "accent" | "rose" | "violet"; delay?: number; spark?: number[]; onClick?: () => void;
 }) {
   const shown = useCountUp(Number.isFinite(value) ? value : 0, 1000, decimals);
   const tones = {
@@ -155,8 +166,14 @@ export function StatTile({ label, value, decimals = 0, unit, sub, icon, tone = "
     violet: "from-violet-400 to-violet-600 shadow-violet-500/30",
   }[tone];
   return (
-    <Card className="lift animate-fade-up p-4" style={{ animationDelay: `${delay}ms` }}>
-      <div className="flex items-start justify-between gap-2">
+    <Card className={cn("lift group relative animate-fade-up p-4", onClick && "cursor-pointer focus-within:ring-2 focus-within:ring-brand-500")} style={{ animationDelay: `${delay}ms` }}>
+      <div
+        className="flex items-start justify-between gap-2 outline-none"
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        aria-label={onClick ? tr("{label}: show requests", { label }) : undefined}
+        onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+      >
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
         <div className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-lg", tones)}>{icon}</div>
       </div>
@@ -166,6 +183,13 @@ export function StatTile({ label, value, decimals = 0, unit, sub, icon, tone = "
       </div>
       {sub && <div className="mt-1 text-xs text-slate-500">{sub}</div>}
       {spark && <div className="mt-3"><Sparkline data={spark} /></div>}
+      {onClick && (
+        <button type="button" onClick={onClick} className="absolute inset-0 rounded-2xl" aria-hidden tabIndex={-1}>
+          <span className="absolute bottom-2 end-3 flex items-center gap-0.5 text-[11px] font-semibold text-brand-600 opacity-0 transition-opacity group-hover:opacity-100">
+            {tr("Details")} <ChevronRight className="h-3 w-3 rtl:rotate-180" />
+          </span>
+        </button>
+      )}
     </Card>
   );
 }

@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, ClipboardList, Inbox as InboxIcon, MapPin, PackageCheck, Plus, Timer, UserRound, Zap } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BarList, ChartCard, ColumnChart, ProgressRing, StatTile, TrendChip } from "@/components/charts";
+import { DrillPanel, type DrillState } from "@/components/DrillPanel";
 import { SiteMap } from "@/components/SiteMap";
 import { Alert, Card, ListSkeleton, PageHeader } from "@/components/ui";
 import { listActivity, listProjects, listRecentEvents, listRequests } from "@/lib/api";
@@ -23,6 +24,7 @@ export function Dashboard() {
   const recent = useQuery({ queryKey: ["recent-events"], queryFn: () => listRecentEvents(8) });
 
   const m = useMemo(() => (requests.data && logs.data ? computeMetrics(requests.data, logs.data) : null), [requests.data, logs.data]);
+  const [drill, setDrill] = useState<DrillState>(null);
   const waiting = useMemo(() => (me && requests.data ? requests.data.filter((r) => waitingOnMe(r, me)).length : 0), [requests.data, me]);
   const decides = has("procurement") || has("project_manager") || has("admin");
 
@@ -72,12 +74,16 @@ export function Dashboard() {
       {!m ? <ListSkeleton rows={2} /> : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile label={t("Open requests")} value={m.open} icon={<ClipboardList className="h-4 w-4" />} delay={100}
+            onClick={() => setDrill({ title: t("Open requests"), subtitle: t("Not yet received, rejected or cancelled"), drill: m.drills.open })}
             sub={<span className="flex flex-wrap items-center gap-1.5">{t("{n} sent this week", { n: m.sentThisWeek })} <TrendChip now={m.sentThisWeek} prev={m.sentLastWeek} goodWhen="up" label={t("vs last week")} /></span>}
             spark={m.perDay.map((d) => d.value)} />
-          <StatTile label={t("Urgent open")} value={m.urgentOpen} tone="rose" icon={<Zap className="h-4 w-4" />} sub={t("flagged by site")} delay={160} />
+          <StatTile label={t("Urgent open")} value={m.urgentOpen} tone="rose" icon={<Zap className="h-4 w-4" />} sub={t("flagged by site")} delay={160}
+            onClick={() => setDrill({ title: t("Urgent open"), subtitle: t("flagged by site"), drill: m.drills.urgentOpen })} />
           <StatTile label={t("Sent → PM decision")} value={decision.value} decimals={1} unit={t(decision.unit)} tone="violet" icon={<Timer className="h-4 w-4" />} delay={220}
+            onClick={() => setDrill({ title: t("Sent → PM decision"), subtitle: t("Time from sending to the PM's decision"), drill: m.drills.toDecision, hoursLabel: t("to decision") })}
             sub={<span className="flex flex-wrap items-center gap-1.5">{t("average over {n} requests", { n: m.decisionsMeasured })} <TrendChip now={m.decisionThisWeekH} prev={m.decisionLastWeekH} goodWhen="down" label={t("vs last week")} /></span>} />
           <StatTile label={t("Delivered")} value={m.received} tone="accent" icon={<PackageCheck className="h-4 w-4" />} sub={t("receipt confirmed on site")} delay={280}
+            onClick={() => setDrill({ title: t("Delivered"), subtitle: t("receipt confirmed on site"), drill: m.drills.received })}
             spark={m.receiptsPerDay.map((d) => d.value)} />
         </div>
       )}
@@ -87,7 +93,9 @@ export function Dashboard() {
         <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
           <div className="space-y-3">
             {projectCards.map((c, i) => (
-              <Card key={c.p.id} className="lift animate-fade-up p-4" style={stagger(i + 6, 60)}>
+              <Card key={c.p.id} className="lift animate-fade-up p-0" style={stagger(i + 6, 60)}>
+                <button type="button" className="block w-full rounded-2xl p-4 text-start focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500"
+                  onClick={() => { const s = m.perProject.find((x) => x.id === c.p.id); if (s) setDrill({ title: `${c.p.project_no} · ${c.p.name}`, subtitle: c.p.location ?? undefined, drill: s.drill }); }}>
                 <div className="flex items-center gap-4">
                   <ProgressRing value={c.total ? c.received / c.total : 0} label={t("{pct} delivered", { pct: c.total ? Math.round((c.received / c.total) * 100) + "%" : "0%" })} />
                   <div className="min-w-0 flex-1">
@@ -108,6 +116,7 @@ export function Dashboard() {
                     </div>
                   </div>
                 </div>
+                </button>
               </Card>
             ))}
           </div>
@@ -124,12 +133,13 @@ export function Dashboard() {
         <div className="grid gap-3 lg:grid-cols-2">
           <ChartCard title={t("Requests sent per day")} subtitle={t("Last 14 days")} delay={320}
             table={{ head: [t("Day"), t("Sent")], rows: m.perDay.map((d) => [d.label, String(d.value)]) }}>
-            <ColumnChart data={m.perDay} />
+            <ColumnChart data={m.perDay} onSelect={(i) => setDrill({ title: t("Requests sent on {day}", { day: m.perDay[i].label }), drill: m.perDay[i].drill })} />
           </ChartCard>
 
           <ChartCard title={t("Average time at each step")} subtitle={t("Where requests wait longest")} delay={380}
             table={{ head: [t("Step"), t("Average")], rows: m.steps.map((s) => [t(s.label), fmtHours(s.value).text]) }}>
             <BarList
+              onSelect={(i) => setDrill({ title: t(m.steps[i].label), subtitle: t("Time spent at this step"), drill: m.steps[i].drill, hoursLabel: t("at this step") })}
               data={m.steps.map((s) => ({ label: t(s.label), value: Number.isFinite(s.value) ? s.value : 0 }))}
               format={(v) => fmtHours(v).text}
               tooltip={(d) => t("{label}: {time} on average", { label: d.label, time: fmtHours(d.value).text })}
@@ -139,15 +149,18 @@ export function Dashboard() {
           <ChartCard title={t("Where requests are now")} subtitle={t("By status")} delay={440}
             table={{ head: [t("Status"), t("Requests")], rows: m.statusCounts.map((s) => [t(s.label), String(s.value)]) }}>
             <BarList data={m.statusCounts.map((s) => ({ label: t(s.label), value: s.value }))}
+              onSelect={(i) => setDrill({ title: t(m.statusCounts[i].label), subtitle: t("By status"), drill: m.statusCounts[i].drill })}
               tooltip={(d, share) => t("{n} requests · {pct}%", { n: d.value, pct: Math.round(share * 100) })} />
           </ChartCard>
 
           <ChartCard title={t("Requests by project")} subtitle={t("All time")} delay={500}
             table={{ head: [t("Project"), t("Requests")], rows: m.byProject.map((p) => [p.label, String(p.value)]) }}>
-            <BarList data={m.byProject} tooltip={(d, share) => t("{n} requests · {pct}%", { n: d.value, pct: Math.round(share * 100) })} />
+            <BarList data={m.byProject} onSelect={(i) => setDrill({ title: m.byProject[i].label, subtitle: t("All time"), drill: m.byProject[i].drill })} tooltip={(d, share) => t("{n} requests · {pct}%", { n: d.value, pct: Math.round(share * 100) })} />
           </ChartCard>
         </div>
       )}
+
+      <DrillPanel state={drill} rows={requests.data ?? []} onClose={() => setDrill(null)} />
 
       {/* Recent activity */}
       <Card className="animate-fade-up p-5" style={{ animationDelay: "560ms" }}>

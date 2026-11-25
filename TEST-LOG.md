@@ -124,3 +124,17 @@ Each user signs in through the real login screen and opens a request at a given 
 - **Project Manager:** own project (Approve, Return, Reject); a request they raised themselves (no actions); a third PM on their own projects (Approve, Return, Reject).
 - **Admin:** a PM's own request (Approve, Return, Reject, Cancel); ordered (Confirm receipt, Update supplier, Cancel).
 - **Closed requests** (received, rejected, cancelled): no actions for anyone.
+
+## 9. Overview drill-downs (`scripts/drill-check.ts`), 26 Nov 2026: all pass
+
+Every number on the Overview can be clicked to list the requests behind it (bottom sheet on phones, panel on desktop; Escape or tap outside closes; filter box when more than 6).
+
+| Check | Result |
+|---|---|
+| Tiles: Open requests / Urgent open / Delivered | panel count matches tile (18 / 6 / 60) |
+| Tile: Sent → PM decision | 84 requests listed with their own time, slowest first |
+| Bars: Where requests are now (9), Requests by project (8) | each bar's value matches its panel count |
+| Bars: Average time at each step (4) | each opens its requests with time spent at that step |
+| Columns: Requests sent per day (13 non-empty days) | each column's value matches its panel count |
+| Project card 155 Villa Complex | 29 total = 29 listed |
+| Tapping a request in the panel | opens that request and closes the panel |

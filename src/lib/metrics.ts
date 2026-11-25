@@ -5,8 +5,12 @@ import { STATUS_LABEL, type Status } from "./strings";
 
 export type LogRow = { request_id: string; action: string; created_at: string };
 
+/** The requests behind a chart value, optionally with an hours figure per request (for step timings). */
+export type Drill = { ids: string[]; hours?: Record<string, number> };
+
 const H = 3_600_000;
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
+const CLOSED = ["received", "rejected", "cancelled"];
 
 /** First timestamp (ms) of any of the given actions for each request. */
 function firstOf(logs: LogRow[], actions: string[]) {
@@ -20,11 +24,12 @@ function firstOf(logs: LogRow[], actions: string[]) {
   return m;
 }
 
+/** Hours between two events, per request that has both. */
 function durations(from: Map<string, number>, to: Map<string, number>) {
-  const out: number[] = [];
+  const out: Record<string, number> = {};
   for (const [id, t0] of from) {
     const t1 = to.get(id);
-    if (t1 !== undefined && t1 >= t0) out.push((t1 - t0) / H);
+    if (t1 !== undefined && t1 >= t0) out[id] = (t1 - t0) / H;
   }
   return out;
 }
@@ -35,6 +40,7 @@ export const PIPELINE: Status[] = [
 
 export function computeMetrics(rows: RequestRow[], logs: LogRow[]) {
   const sentRows = rows.filter((r) => r.status !== "draft");
+  const ids = (xs: RequestRow[]) => xs.map((r) => r.id);
   const sent = firstOf(logs, ["sent"]);
   const forwarded = firstOf(logs, ["forwarded_to_pm"]);
   const decided = firstOf(logs, ["approved", "rejected"]);
@@ -42,21 +48,28 @@ export function computeMetrics(rows: RequestRow[], logs: LogRow[]) {
   const received = firstOf(logs, ["receipt_confirmed"]);
 
   const toDecision = durations(sent, decided);
+  const step = (label: string, d: Record<string, number>) => {
+    const vals = Object.values(d);
+    return { label, value: avg(vals), n: vals.length, drill: { ids: Object.keys(d), hours: d } as Drill };
+  };
   const steps = [
-    { label: "Procurement review", value: avg(durations(sent, forwarded)), n: durations(sent, forwarded).length },
-    { label: "PM decision", value: avg(durations(forwarded, decided)), n: durations(forwarded, decided).length },
-    { label: "Sourcing", value: avg(durations(firstOf(logs, ["approved"]), ordered)), n: durations(firstOf(logs, ["approved"]), ordered).length },
-    { label: "Delivery to site", value: avg(durations(ordered, received)), n: durations(ordered, received).length },
+    step("Procurement review", durations(sent, forwarded)),
+    step("PM decision", durations(forwarded, decided)),
+    step("Sourcing", durations(firstOf(logs, ["approved"]), ordered)),
+    step("Delivery to site", durations(ordered, received)),
   ];
 
-  const statusCounts = PIPELINE.map((s) => ({ key: s, label: STATUS_LABEL[s], value: sentRows.filter((r) => r.status === s).length }))
-    .filter((d) => d.value > 0);
+  const statusCounts = PIPELINE.map((s) => {
+    const xs = sentRows.filter((r) => r.status === s);
+    return { key: s, label: STATUS_LABEL[s], value: xs.length, drill: { ids: ids(xs) } as Drill };
+  }).filter((d) => d.value > 0);
 
-  const proj = new Map<string, { label: string; value: number }>();
+  const proj = new Map<string, { label: string; value: number; drill: Drill }>();
   for (const r of sentRows) {
-    const k = r.project?.project_no ?? "?";
-    const cur = proj.get(k) ?? { label: `${k} · ${r.project?.name ?? ""}`, value: 0 };
+    const k = r.project_id;
+    const cur = proj.get(k) ?? { label: `${r.project?.project_no ?? "?"} · ${r.project?.name ?? ""}`, value: 0, drill: { ids: [] } };
     cur.value++;
+    cur.drill.ids.push(r.id);
     proj.set(k, cur);
   }
   const byProject = [...proj.values()].sort((a, b) => b.value - a.value);
@@ -64,10 +77,10 @@ export function computeMetrics(rows: RequestRow[], logs: LogRow[]) {
   // Per-day series, last 14 days (Dubai dates)
   const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai" });
   const mk = () => {
-    const out: { key: string; label: string; value: number }[] = [];
+    const out: { key: string; label: string; value: number; drill: Drill }[] = [];
     for (let i = 13; i >= 0; i--) {
       const d = new Date(Date.now() - i * 86_400_000);
-      out.push({ key: fmt.format(d), label: fmtDayMonth(d), value: 0 });
+      out.push({ key: fmt.format(d), label: fmtDayMonth(d), value: 0, drill: { ids: [] } });
     }
     return out;
   };
@@ -75,20 +88,20 @@ export function computeMetrics(rows: RequestRow[], logs: LogRow[]) {
   for (const r of sentRows) {
     if (!r.sent_at) continue;
     const day = days.find((d) => d.key === fmt.format(new Date(r.sent_at!)));
-    if (day) day.value++;
+    if (day) { day.value++; day.drill.ids.push(r.id); }
   }
   const receiptsPerDay = mk();
-  for (const t of received.values()) {
-    const day = receiptsPerDay.find((d) => d.key === fmt.format(new Date(t)));
-    if (day) day.value++;
+  for (const [id, ts] of received) {
+    const day = receiptsPerDay.find((d) => d.key === fmt.format(new Date(ts)));
+    if (day) { day.value++; day.drill.ids.push(id); }
   }
 
   // Week-over-week: sent volume and time to PM decision (by decision date)
   const now = Date.now();
   const W = 7 * 86_400_000;
-  const inWeek = (t: number, back: number) => t > now - (back + 1) * W && t <= now - back * W;
-  const sentThisWeek = [...sent.values()].filter((t) => inWeek(t, 0)).length;
-  const sentLastWeek = [...sent.values()].filter((t) => inWeek(t, 1)).length;
+  const inWeek = (ts: number, back: number) => ts > now - (back + 1) * W && ts <= now - back * W;
+  const sentThisWeek = [...sent.values()].filter((ts) => inWeek(ts, 0)).length;
+  const sentLastWeek = [...sent.values()].filter((ts) => inWeek(ts, 1)).length;
   const decisionWeek = (back: number) => {
     const xs: number[] = [];
     for (const [id, t0] of sent) {
@@ -99,29 +112,37 @@ export function computeMetrics(rows: RequestRow[], logs: LogRow[]) {
   };
 
   // Per project
-  const projects = new Map<string, { id: string; total: number; received: number; open: number; urgent: number; decisions: number[] }>();
+  const projects = new Map<string, { id: string; total: number; received: number; open: number; urgent: number; decisions: number[]; drill: Drill }>();
   for (const r of sentRows) {
-    const p = projects.get(r.project_id) ?? { id: r.project_id, total: 0, received: 0, open: 0, urgent: 0, decisions: [] };
+    const p = projects.get(r.project_id) ?? { id: r.project_id, total: 0, received: 0, open: 0, urgent: 0, decisions: [], drill: { ids: [] } };
     p.total++;
+    p.drill.ids.push(r.id);
     if (r.status === "received") p.received++;
-    if (!["received", "rejected", "cancelled"].includes(r.status)) {
+    if (!CLOSED.includes(r.status)) {
       p.open++;
       if (r.urgency === "urgent") p.urgent++;
     }
-    const t0 = sent.get(r.id), t1 = decided.get(r.id);
-    if (t0 !== undefined && t1 !== undefined) p.decisions.push((t1 - t0) / H);
+    if (toDecision[r.id] !== undefined) p.decisions.push(toDecision[r.id]);
     projects.set(r.project_id, p);
   }
   const perProject = [...projects.values()].map((p) => ({ ...p, avgDecisionH: avg(p.decisions) }));
 
-  const closed = sentRows.filter((r) => ["received", "rejected", "cancelled"].includes(r.status)).length;
+  const openRows = sentRows.filter((r) => !CLOSED.includes(r.status));
+  const urgentOpenRows = openRows.filter((r) => r.urgency === "urgent");
+  const receivedRows = sentRows.filter((r) => r.status === "received");
   return {
     total: sentRows.length,
-    open: sentRows.length - closed,
-    received: sentRows.filter((r) => r.status === "received").length,
-    urgentOpen: sentRows.filter((r) => r.urgency === "urgent" && !["received", "rejected", "cancelled"].includes(r.status)).length,
-    avgToDecisionH: avg(toDecision),
-    decisionsMeasured: toDecision.length,
+    open: openRows.length,
+    received: receivedRows.length,
+    urgentOpen: urgentOpenRows.length,
+    avgToDecisionH: avg(Object.values(toDecision)),
+    decisionsMeasured: Object.keys(toDecision).length,
+    drills: {
+      open: { ids: ids(openRows) } as Drill,
+      urgentOpen: { ids: ids(urgentOpenRows) } as Drill,
+      received: { ids: ids(receivedRows) } as Drill,
+      toDecision: { ids: Object.keys(toDecision), hours: toDecision } as Drill,
+    },
     steps,
     statusCounts,
     byProject,

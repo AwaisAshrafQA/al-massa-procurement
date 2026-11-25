@@ -320,6 +320,20 @@ export const AR: Record<string, string> = {
   "Only this project's Project Manager can return it to Procurement.": "يمكن لمدير هذا المشروع فقط إعادته إلى المشتريات.",
   "Only this project's Project Manager can reject.": "يمكن لمدير هذا المشروع فقط الرفض.",
   "Only the requester or Admin can cancel a request.": "يمكن لمقدّم الطلب أو المسؤول فقط إلغاء الطلب.",
+  "1 request": "طلب واحد",
+  "{n} requests": "{n} طلبات",
+  "slowest first": "الأبطأ أولاً",
+  "Filter by number, project, purpose or person…": "تصفية بالرقم أو المشروع أو الغرض أو الشخص…",
+  "{label}: {value}. Show requests": "{label}: {value}. عرض الطلبات",
+  "click for details": "انقر للتفاصيل",
+  "{label}: show requests": "{label}: عرض الطلبات",
+  "Details": "التفاصيل",
+  "Not yet received, rejected or cancelled": "لم تُستلم أو تُرفض أو تُلغَ بعد",
+  "Time from sending to the PM's decision": "الوقت من الإرسال حتى قرار مدير المشروع",
+  "to decision": "حتى القرار",
+  "Requests sent on {day}": "الطلبات المرسلة في {day}",
+  "Time spent at this step": "الوقت المستغرق في هذه المرحلة",
+  "at this step": "في هذه المرحلة",
 };
 
 /** Database messages built from parts (see _require_status, _require_comment, _not_own_request). */
