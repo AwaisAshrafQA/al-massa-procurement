@@ -31,13 +31,26 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  /** Fill the email, bring the form back into view and put the cursor in the password box. */
+  function pickDemo(e: string) {
+    setEmail(e);
+    setError(null);
+    const pw = document.getElementById("password") as HTMLInputElement | null;
+    if (!pw) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    // Scroll the window only (scrollIntoView would also shift the clipped background layer sideways).
+    const r = pw.getBoundingClientRect();
+    window.scrollTo({ top: Math.max(0, window.scrollY + r.top - window.innerHeight / 2 + r.height / 2), left: 0, behavior: reduce ? "auto" : "smooth" });
+    pw.focus({ preventScroll: true });
+  }
+
   if (!loading && me) {
     const from = (loc.state as { from?: string } | null)?.from;
     return <Navigate to={from ?? homeFor(me)} replace />;
   }
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-brand-600 px-4 py-10 dark:from-[#050a14] dark:via-[#0a1630] dark:to-[#0f2a52]">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-clip bg-gradient-to-br from-brand-900 via-brand-800 to-brand-600 px-4 py-10 dark:from-[#050a14] dark:via-[#0a1630] dark:to-[#0f2a52]">
       <div className="pointer-events-none absolute -start-24 top-10 h-80 w-80 animate-float rounded-full bg-accent-400/30 blur-3xl" />
       <div className="pointer-events-none absolute -end-20 bottom-0 h-96 w-96 animate-float rounded-full bg-brand-400/40 blur-3xl [animation-delay:-7s]" />
       <div className="pointer-events-none absolute inset-0 opacity-[.07] [background-image:linear-gradient(rgba(255,255,255,.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.6)_1px,transparent_1px)] [background-size:40px_40px]" />
@@ -94,7 +107,7 @@ export function Login() {
           <ul className="mt-2 space-y-1.5">
             {DEMO_USERS.map(([e, d]) => (
               <li key={e}>
-                <button type="button" onClick={() => setEmail(e)} className="w-full rounded-lg px-1.5 py-1 text-start hover:bg-white/10">
+                <button type="button" onClick={() => pickDemo(e)} className="w-full rounded-lg px-1.5 py-1 text-start hover:bg-white/10">
                   <span className="font-mono text-accent-400" dir="ltr">{e}</span>
                   <span className="block text-xs text-white/60">{t(d)}</span>
                 </button>

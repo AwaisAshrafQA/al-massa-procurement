@@ -174,6 +174,9 @@ async function main() {
   // ---- Sample requests (only when none exist, so re-running doesn't duplicate them)
   const { count } = await db.from("purchase_requests").select("id", { count: "exact", head: true }).eq("company_id", companyId);
   if ((count ?? 0) > 0) {
+    for (const p of PROJECTS.filter((x) => x.closed)) {
+      check(await db.from("projects").update({ status: "closed" }).eq("id", projectIds[p.no]), `close ${p.no}`);
+    }
     console.log(`Sample requests: kept existing ${count}. Run "npm run reset" to recreate them.`);
     return;
   }

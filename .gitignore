@@ -22,3 +22,6 @@ Thumbs.db
 
 # demo recordings
 demo/
+
+# vite dependency cache
+.vite/
