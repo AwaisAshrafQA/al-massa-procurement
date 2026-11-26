@@ -23,6 +23,19 @@ export function ItemPicker({ items, value, onPick, invalid, id, onLeave }: {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Where the results list opens. On phones the Save bar and bottom menu cover the lower part
+  // of the screen; on the last line the page can't scroll further, so the list opens upwards.
+  const [place, setPlace] = useState<{ up: boolean; maxH: number }>({ up: false, maxH: 320 });
+  const measure = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const phone = window.matchMedia("(max-width: 767px)").matches;
+    const below = window.innerHeight - r.bottom - (phone ? 200 : 16);
+    const above = r.top - (phone ? 72 : 16);
+    const up = below < 240 && above > below;
+    setPlace({ up, maxH: Math.max(140, Math.min(320, (up ? above : below) - 8)) });
+  };
   const selected = value.itemId ? items.find((i) => i.id === value.itemId) : undefined;
 
   const matches = useMemo(() => {
@@ -91,13 +104,15 @@ export function ItemPicker({ items, value, onPick, invalid, id, onLeave }: {
         id={id}
         ref={inputRef}
         value={q}
-        onChange={(e) => { setQ(e.target.value); setOpen(true); setActive(0); }}
+        onChange={(e) => { setQ(e.target.value); if (!open) measure(); setOpen(true); setActive(0); }}
         onFocus={() => {
           setOpen(true);
           // On phones the form's Save bar and the bottom nav cover the lower half of the
           // screen: bring the search box up so the results open in clear space.
+          measure();
           if (window.matchMedia("(max-width: 767px)").matches) {
             setTimeout(() => inputRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }), 50);
+            setTimeout(measure, 450); // after the scroll settles
           }
         }}
         onBlur={() => {
@@ -129,7 +144,8 @@ export function ItemPicker({ items, value, onPick, invalid, id, onLeave }: {
         )}
       />
       {open && choices.length > 0 && (
-        <ul role="listbox" className="absolute z-20 mt-1 max-h-[min(20rem,42dvh)] w-full overscroll-contain animate-scale-in overflow-auto rounded-xl bg-white p-1 text-sm shadow-lift ring-1 ring-slate-200">
+        <ul role="listbox" style={{ maxHeight: place.maxH }}
+          className={cn("absolute z-40 w-full overscroll-contain animate-scale-in overflow-auto rounded-xl bg-white p-1 text-sm shadow-lift ring-1 ring-slate-200", place.up ? "bottom-full mb-1" : "mt-1")}>
           {choices.map((c, i) => (
             <li
               key={c.kind === "item" ? c.item.id : "text"}

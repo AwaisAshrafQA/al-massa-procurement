@@ -263,3 +263,23 @@ Proof:
 - **Agreed delivery date:** may also be in the past.
 - **Sanity range:** both dates must be within 12 months either side of today, so a mistyped year is still caught. This is enforced in the database and shown in the form.
 - **Tests:** the workflow and edge tests now check that a past date is accepted and that more than 12 months back is refused.
+
+## 16. Found while recording the demo video, 26 Nov 2026
+
+| # | Bug | Fix | Check |
+|---|---|---|---|
+| 1 | On the last line of a longer request on a phone, the item suggestions opened downwards behind the Save bar and bottom menu, so some could not be seen or tapped. | The list measures the space and opens upwards when there is no room below (like the other dropdowns), with its height capped to what is visible. | Recording passes through it; viewport captures |
+| 2 | On touchscreen laptops used with a mouse, clicking an Inbox card did not open it (the swipe handler captured the pointer on press, so the click went to the wrapper, not the link). | The swipe handler only captures once a real sideways drag starts. | Tap (phone), mouse click (touch laptop), click (desktop) all open the card; swipe still reveals the quick action without opening |
+
+Dropdown, validation, save and role checks re-run: all pass.
+
+**Demo video:** `scripts/demo-video.ts` records a 4-minute captioned phone walkthrough against the live site. It shows:
+
+- sign-in checks;
+- a new urgent request with live validation (minus sign stripped, 2.5 tankers refused, free text kept);
+- a return to site with a mandatory comment, then the edit and resend;
+- forward, PM approval, supplier and delivery (with the late-delivery warning), and receipt;
+- security: another project's request not visible, no self-approval, an Admin approval logged "as Admin";
+- the Overview drill-down, the Board, quick search, Arabic and dark mode.
+
+The request it creates is deleted at the end, so the demo data is unchanged.

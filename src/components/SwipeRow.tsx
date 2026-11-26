@@ -21,13 +21,19 @@ export function SwipeRow({ children, action }: {
 
   const onDown = (e: React.PointerEvent) => {
     start.current = { x: e.clientX, base: x, moved: false };
-    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
   };
   const onMove = (e: React.PointerEvent) => {
     const s = start.current;
     if (!s) return;
     const dx = e.clientX - s.x;
-    if (Math.abs(dx) > 6) s.moved = true;
+    if (!s.moved && Math.abs(dx) > 6) {
+      s.moved = true;
+      // Capture only once a real sideways drag starts. Capturing on press sent a plain mouse
+      // click to this wrapper instead of the card's link, so the card didn't open (seen on
+      // touchscreen laptops used with a mouse).
+      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+    if (!s.moved) return;
     const next = Math.max(0, Math.min(W, (s.base * sign + dx * sign))) * sign;
     setX(next);
   };
