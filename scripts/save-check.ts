@@ -49,9 +49,9 @@ try {
   await qty.nth(0).fill("");
   await p.getByRole("button", { name: "Save draft" }).click();
   await p.waitForTimeout(1500);
-  if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT, fullPage: true });
   const blocked = await p.getByText("Finish or remove the highlighted lines before saving.").waitFor({ timeout: 8000 }).then(() => 1, () => 0);
   const keptDraft = await lines();
+  if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT, fullPage: true });
   check("oversized quantity is capped; an unfinished line blocks saving and nothing is lost",
     capped === "100000000" && blocked > 0 && keptDraft.length === 3 && Number(keptDraft[0].qty) === 1, `capped to ${capped}, blocked ${blocked}, lines ${JSON.stringify(keptDraft)}`);
 

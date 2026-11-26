@@ -40,6 +40,13 @@ export function RequestForm() {
   const [touched, setTouched] = useState<Set<string>>(() => new Set());
   const touch = (k: string) => setTouched((s) => (s.has(k) ? s : new Set(s).add(k)));
   const show = (k: string) => tried || touched.has(k);
+  // Leaving a field by pressing a button (Save / Send / Add line) doesn't show its message
+  // first: that would push the buttons down under the pointer and the click would miss.
+  // The button's own action shows every message anyway.
+  const leave = (k: string) => (e: React.FocusEvent) => {
+    if (e.relatedTarget instanceof HTMLElement && e.relatedTarget.closest("button")) return;
+    touch(k);
+  };
   const [busy, setBusy] = useState<"save" | "send" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(!editing);
@@ -167,7 +174,7 @@ export function RequestForm() {
           <Field label={t("Required on site by")} htmlFor="rdate" required error={show("rdate") ? errors.date : null}
             warning={requiredDate && !errors.date && requiredDate < today ? t("This date has passed. That's fine when entering an earlier request.") : null}>
             <Input id="rdate" type="date" min={minDate} max={maxDate} value={requiredDate} aria-invalid={show("rdate") && !!errors.date}
-              onChange={(e) => { setRequiredDate(e.target.value); if (e.target.value.length === 10) touch("rdate"); }} onBlur={() => touch("rdate")} />
+              onChange={(e) => { setRequiredDate(e.target.value); if (e.target.value.length === 10) touch("rdate"); }} onBlur={leave("rdate")} />
           </Field>
           <Field label={t("Urgency")} required>
             <div className="grid grid-cols-2 gap-2" role="radiogroup">
@@ -183,7 +190,7 @@ export function RequestForm() {
         </div>
         {urgent && (
           <Field label={t("Why is it urgent?")} htmlFor="reason" required error={show("reason") ? errors.reason : null} count={{ value: reason, max: LIMITS.urgentReason }}>
-            <Input id="reason" maxLength={LIMITS.urgentReason} value={reason} onBlur={() => touch("reason")} aria-invalid={show("reason") && !!errors.reason} onChange={(e) => setReason(e.target.value)} placeholder={t("e.g. pour scheduled tomorrow")} />
+            <Input id="reason" maxLength={LIMITS.urgentReason} value={reason} onBlur={leave("reason")} aria-invalid={show("reason") && !!errors.reason} onChange={(e) => setReason(e.target.value)} placeholder={t("e.g. pour scheduled tomorrow")} />
           </Field>
         )}
         <Field label={t("Purpose / BOQ reference")} htmlFor="purpose" hint={t("Optional, e.g. “Footings concrete, phase 2”")} count={{ value: purpose, max: LIMITS.purpose }}>
@@ -224,7 +231,7 @@ export function RequestForm() {
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t("Quantity")} htmlFor={`q-${l.key}`} required error={show(`q-${l.key}`) && e.qty ? t(e.qty.msg, e.qty.vars) : null}>
                   <Input id={`q-${l.key}`} inputMode="decimal" maxLength={13} value={l.qtyText} placeholder="0" aria-invalid={show(`q-${l.key}`) && !!e.qty}
-                    onChange={(ev) => update(l.key, { qtyText: sanitizeQty(ev.target.value) })} onBlur={() => touch(`q-${l.key}`)} />
+                    onChange={(ev) => update(l.key, { qtyText: sanitizeQty(ev.target.value) })} onBlur={leave(`q-${l.key}`)} />
                 </Field>
                 <Field label={t("Unit")} htmlFor={`u-${l.key}`} required error={show(`u-${l.key}`) && e.unit ? t("Choose a unit.") : null}>
                   <Select id={`u-${l.key}`} value={l.unit} onChange={(ev) => { update(l.key, { unit: ev.target.value }); touch(`u-${l.key}`); }}>
