@@ -194,7 +194,7 @@ Every screen was checked at phone, tablet and desktop sizes in English and Arabi
 
 ### Al Massa logo
 The official logo (supplied as AVIF) is in use: the diamond mark appears in the header, login page, browser tab and app icons, always on a white tile so the navy mark stays visible on dark backgrounds. The wordmark is typed text, because the supplied image has its text cropped.
-- Source files (not published): `brand-source/`
+- Source files as supplied: `brand-source/` (not served by the app)
 - To regenerate after receiving a better file (ideally SVG or a full-width PNG): put it in `brand-source/`, then run `npx tsx scripts/convert-logo.ts`, `npx tsx scripts/make-mark.ts` and `npx tsx scripts/make-icons.ts`, and re-export `public/brand/logo-mark-256.png`.
 - Brand colours sampled from the logo: navy `#203050`, orange `#F09020`.
 
