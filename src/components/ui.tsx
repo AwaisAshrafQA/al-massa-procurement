@@ -218,16 +218,32 @@ export function Textarea({ className, ...p }: TextareaHTMLAttributes<HTMLTextAre
   return <textarea {...p} className={cn(field, className)} />;
 }
 
-export function Field({ label, htmlFor, hint, error, required, children }: {
-  label: string; htmlFor?: string; hint?: string; error?: string | null; required?: boolean; children: ReactNode;
+export function Field({ label, htmlFor, hint, error, required, count, children }: {
+  label: string; htmlFor?: string; hint?: string; error?: string | null; required?: boolean;
+  /** Shows "used / max" once the text gets close to its limit. */
+  count?: { value: string; max: number };
+  children: ReactNode;
 }) {
+  const used = count ? count.value.length : 0;
+  const showCount = count && used >= count.max * 0.8;
   return (
     <div className="space-y-1.5">
       <label htmlFor={htmlFor} className="block text-sm font-medium text-slate-700">
         {label} {required && <span className="text-rose-500" aria-hidden>*</span>}
       </label>
       {children}
-      {error ? <p className="animate-fade-in text-sm text-rose-600">{error}</p> : hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
+      {(error || hint || showCount) && (
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            {error ? <p className="animate-fade-in text-sm text-rose-600" id={htmlFor ? `${htmlFor}-error` : undefined}>{error}</p> : hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
+          </div>
+          {showCount && (
+            <span className={cn("shrink-0 text-xs tabular-nums", used >= count.max ? "font-semibold text-rose-600" : "text-slate-500")} aria-live="polite">
+              {used}/{count.max}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

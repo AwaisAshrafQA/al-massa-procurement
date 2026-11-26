@@ -47,7 +47,7 @@ try {
   await qty.nth(0).fill("10000000000");
   await p.getByRole("button", { name: "Save draft" }).click();
   await p.waitForTimeout(1500);
-  const big = await p.getByText("Enter a quantity above 0.").count();
+  const big = await p.getByText("Enter a number above 0, with up to 3 decimals.").count();
   check("oversized quantity is flagged and nothing is lost", big > 0 && (await lines()).length === 3);
 
   // 3. someone sends it while the form is open, then the form is saved

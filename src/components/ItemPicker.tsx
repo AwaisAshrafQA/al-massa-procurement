@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import type { Item } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { ItemIcon } from "@/lib/itemIcons";
+import { LIMITS } from "@/lib/limits";
 import { cn } from "./ui";
 
 type Value = { itemId: string | null; description: string | null };
@@ -105,6 +106,7 @@ export function ItemPicker({ items, value, onPick, invalid, id }: {
         }}
         placeholder={t("Search code or name, e.g. W2 or cement")}
         autoComplete="off"
+        maxLength={LIMITS.description}
         role="combobox"
         aria-expanded={open}
         aria-invalid={invalid || undefined}

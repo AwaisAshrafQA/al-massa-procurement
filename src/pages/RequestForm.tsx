@@ -9,6 +9,7 @@ import { getRequest, listItems, listProjects, listUnits, rpc, saveRequest, type 
 import { useAuth } from "@/lib/auth";
 import { normaliseDigits, todayDubai } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
+import { addDays, LIMITS, validQty } from "@/lib/limits";
 
 type Draft = Omit<Line, "qty"> & { key: string; qtyText: string };
 let seq = 0;
@@ -63,19 +64,19 @@ export function RequestForm() {
   }, [existing.data, loaded]);
 
   const today = todayDubai();
-  const lineErrors = lines.map((l) => {
-    const q = Number(normaliseDigits(l.qtyText));
-    return {
-      item: !l.item_id && !(l.description ?? "").trim(),
-      qty: !l.qtyText.trim() || !(q > 0 && q < 1e9), // DB column is numeric(12,3)
-      unit: !l.unit,
-    };
-  });
+  const maxDate = addDays(today, LIMITS.daysAhead);
+  const lineErrors = lines.map((l) => ({
+    item: !l.item_id && !(l.description ?? "").trim(),
+    qty: !validQty(normaliseDigits(l.qtyText)), // above 0, up to 3 decimals, within the database limit
+    unit: !l.unit,
+  }));
   const errors = {
     project: !projectId ? t("Choose a project.") : null,
-    date: !requiredDate ? t("Choose the date it is needed on site.") : requiredDate < today ? t("The date cannot be in the past.") : null,
+    date: !requiredDate ? t("Choose the date it is needed on site.")
+      : requiredDate < today ? t("The date cannot be in the past.")
+      : requiredDate > maxDate ? t("Choose a date within the next 12 months.") : null,
     reason: urgent && !reason.trim() ? t("Say why it is urgent.") : null,
-    lines: lines.length === 0 ? t("Add at least one line.") : null,
+    lines: lines.length === 0 ? t("Add at least one line.") : lines.length > LIMITS.lines ? t("A request can have at most {n} lines.", { n: LIMITS.lines }) : null,
   };
   const valid = !Object.values(errors).some(Boolean) && lineErrors.every((e) => !e.item && !e.qty && !e.unit);
 
@@ -159,7 +160,7 @@ export function RequestForm() {
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t("Required on site by")} htmlFor="rdate" required error={tried ? errors.date : null}>
-            <Input id="rdate" type="date" min={today} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} />
+            <Input id="rdate" type="date" min={today} max={maxDate} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} />
           </Field>
           <Field label={t("Urgency")} required>
             <div className="grid grid-cols-2 gap-2" role="radiogroup">
@@ -174,12 +175,12 @@ export function RequestForm() {
           </Field>
         </div>
         {urgent && (
-          <Field label={t("Why is it urgent?")} htmlFor="reason" required error={tried ? errors.reason : null}>
-            <Input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("e.g. pour scheduled tomorrow")} />
+          <Field label={t("Why is it urgent?")} htmlFor="reason" required error={tried ? errors.reason : null} count={{ value: reason, max: LIMITS.urgentReason }}>
+            <Input id="reason" maxLength={LIMITS.urgentReason} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("e.g. pour scheduled tomorrow")} />
           </Field>
         )}
-        <Field label={t("Purpose / BOQ reference")} htmlFor="purpose" hint={t("Optional, e.g. “Footings concrete, phase 2”")}>
-          <Input id="purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} />
+        <Field label={t("Purpose / BOQ reference")} htmlFor="purpose" hint={t("Optional, e.g. “Footings concrete, phase 2”")} count={{ value: purpose, max: LIMITS.purpose }}>
+          <Input id="purpose" maxLength={LIMITS.purpose} value={purpose} onChange={(e) => setPurpose(e.target.value)} />
         </Field>
       </Card>
 
@@ -212,8 +213,8 @@ export function RequestForm() {
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
-                <Field label={t("Quantity")} htmlFor={`q-${l.key}`} required error={tried && e.qty ? t("Enter a quantity above 0.") : null}>
-                  <Input id={`q-${l.key}`} inputMode="decimal" value={l.qtyText} onChange={(ev) => update(l.key, { qtyText: normaliseDigits(ev.target.value) })} placeholder="0" />
+                <Field label={t("Quantity")} htmlFor={`q-${l.key}`} required error={tried && e.qty ? t("Enter a number above 0, with up to 3 decimals.") : null}>
+                  <Input id={`q-${l.key}`} inputMode="decimal" maxLength={13} value={l.qtyText} onChange={(ev) => update(l.key, { qtyText: normaliseDigits(ev.target.value) })} placeholder="0" />
                 </Field>
                 <Field label={t("Unit")} htmlFor={`u-${l.key}`} required error={tried && e.unit ? t("Choose a unit.") : null}>
                   <Select id={`u-${l.key}`} value={l.unit} onChange={(ev) => update(l.key, { unit: ev.target.value })}>
@@ -223,18 +224,18 @@ export function RequestForm() {
                 </Field>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label={t("Size / spec / brand")} htmlFor={`s-${l.key}`}>
-                  <Input id={`s-${l.key}`} value={l.size_spec ?? ""} onChange={(ev) => update(l.key, { size_spec: ev.target.value })} />
+                <Field label={t("Size / spec / brand")} htmlFor={`s-${l.key}`} count={{ value: l.size_spec ?? "", max: LIMITS.sizeSpec }}>
+                  <Input id={`s-${l.key}`} maxLength={LIMITS.sizeSpec} value={l.size_spec ?? ""} onChange={(ev) => update(l.key, { size_spec: ev.target.value })} />
                 </Field>
-                <Field label={t("Notes")} htmlFor={`n-${l.key}`}>
-                  <Textarea id={`n-${l.key}`} rows={1} value={l.notes ?? ""} onChange={(ev) => update(l.key, { notes: ev.target.value })} />
+                <Field label={t("Notes")} htmlFor={`n-${l.key}`} count={{ value: l.notes ?? "", max: LIMITS.lineNotes }}>
+                  <Textarea id={`n-${l.key}`} rows={1} maxLength={LIMITS.lineNotes} value={l.notes ?? ""} onChange={(ev) => update(l.key, { notes: ev.target.value })} />
                 </Field>
               </div>
             </Card>
           );
         })}
-        <Button type="button" variant="secondary" className="w-full" onClick={() => setLines((ls) => [...ls, blankLine()])}>
-          <Plus className="h-4 w-4" /> {t("Add line")}
+        <Button type="button" variant="secondary" className="w-full" disabled={lines.length >= LIMITS.lines} onClick={() => setLines((ls) => [...ls, blankLine()])}>
+          <Plus className="h-4 w-4" /> {lines.length >= LIMITS.lines ? t("A request can have at most {n} lines.", { n: LIMITS.lines }) : t("Add line")}
         </Button>
       </div>
 

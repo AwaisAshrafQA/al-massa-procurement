@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import type { RequestRow } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
+import { LIMITS } from "@/lib/limits";
 import { fmtHours, type Drill } from "@/lib/metrics";
 import { stagger } from "@/lib/motion";
 import { StatusBadge, UrgentBadge } from "./StatusBadge";
@@ -66,7 +67,7 @@ export function DrillPanel({ state, rows, onClose }: { state: DrillState; rows: 
           <div className="px-5 pb-3">
             <div className="relative">
               <Search className="pointer-events-none absolute start-3 top-2.5 h-4 w-4 text-slate-400" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Filter by number, project, purpose or person…")}
+              <input value={q} maxLength={LIMITS.search} aria-label={t("Filter by number, project, purpose or person…")} onChange={(e) => setQ(e.target.value)} placeholder={t("Filter by number, project, purpose or person…")}
                 className="block w-full rounded-xl border-0 bg-slate-50 py-2 pe-3 ps-9 text-sm text-slate-900 ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-brand-500" />
             </div>
           </div>

@@ -6,6 +6,7 @@ import { useAuth, type Me } from "@/lib/auth";
 import { celebrate } from "@/lib/confetti";
 import { todayDubai } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
+import { addDays, LIMITS } from "@/lib/limits";
 import { useToast } from "./Toast";
 import { Alert, Button, Dialog, Field, Input, Select, Textarea } from "./ui";
 
@@ -154,6 +155,7 @@ function CommentDialog({ action, busy, error, onClose, onSubmit }: {
   const [text, setText] = useState("");
   const [touched, setTouched] = useState(false);
   const missing = action.commentRequired && !text.trim();
+  const max = LIMITS.comment;
   return (
     <Dialog open onClose={onClose} title={t(action.label)}>
       <form
@@ -164,8 +166,8 @@ function CommentDialog({ action, busy, error, onClose, onSubmit }: {
         }}
         className="space-y-4"
       >
-        <Field label={t(action.commentLabel ?? "Comment")} htmlFor="comment" required={action.commentRequired} error={touched && missing ? t("A comment is required.") : null}>
-          <Textarea id="comment" rows={3} value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+        <Field label={t(action.commentLabel ?? "Comment")} htmlFor="comment" required={action.commentRequired} error={touched && missing ? t("A comment is required.") : null} count={{ value: text, max }}>
+          <Textarea id="comment" rows={3} maxLength={max} value={text} onChange={(e) => setText(e.target.value)} autoFocus />
         </Field>
         {error && <Alert>{error}</Alert>}
         <div className="flex gap-2">
@@ -187,14 +189,17 @@ function OrderDialog({ request, action, busy, error, onClose, onSubmit }: {
   const [comment, setComment] = useState("");
   const [touched, setTouched] = useState(false);
   const today = todayDubai();
+  const maxDate = addDays(today, LIMITS.daysAhead);
+  const dateError = !date ? t("Choose the agreed delivery date.") : date < today ? t("Choose today or a later date.") : date > maxDate ? t("Choose a date within the next 12 months.") : null;
   return (
     <Dialog open onClose={onClose} title={t(action.label)}>
       <form
+        noValidate
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
           setTouched(true);
-          if (supplier && date && date >= today) onSubmit({ p_supplier_id: supplier, p_delivery_date: date, p_comment: comment.trim() || null });
+          if (supplier && !dateError) onSubmit({ p_supplier_id: supplier, p_delivery_date: date, p_comment: comment.trim() || null });
         }}
       >
         <Field label={t("Supplier")} htmlFor="supplier" required error={touched && !supplier ? t("Choose a supplier.") : null}>
@@ -203,11 +208,11 @@ function OrderDialog({ request, action, busy, error, onClose, onSubmit }: {
             {suppliers.data?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </Select>
         </Field>
-        <Field label={t("Agreed delivery date")} htmlFor="ddate" required error={touched && (!date || date < today) ? t("Choose today or a later date.") : null}>
-          <Input id="ddate" type="date" min={today} value={date} onChange={(e) => setDate(e.target.value)} />
+        <Field label={t("Agreed delivery date")} htmlFor="ddate" required error={touched ? dateError : null}>
+          <Input id="ddate" type="date" min={today} max={maxDate} value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        <Field label={t("Note (optional)")} htmlFor="onote">
-          <Input id="onote" value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("e.g. quotation ref, contact person")} />
+        <Field label={t("Note (optional)")} htmlFor="onote" count={{ value: comment, max: LIMITS.orderNote }}>
+          <Input id="onote" maxLength={LIMITS.orderNote} value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("e.g. quotation ref, contact person")} />
         </Field>
         {error && <Alert>{error}</Alert>}
         <div className="flex gap-2">

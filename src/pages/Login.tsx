@@ -5,6 +5,7 @@ import { LogoMark } from "@/components/Logo";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { homeFor, useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
+import { LIMITS, validEmail } from "@/lib/limits";
 import { useTheme } from "@/lib/theme";
 
 const DEMO_USERS = [
@@ -30,6 +31,9 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [tried, setTried] = useState(false);
+  const emailError = !email.trim() ? t("Enter your company email.") : !validEmail(email) ? t("Enter a valid email address, e.g. name@company.com.") : null;
+  const passwordError = !password ? t("Enter your password.") : null;
 
   /** Fill the email, bring the form back into view and put the cursor in the password box. */
   function pickDemo(e: string) {
@@ -75,21 +79,25 @@ export function Login() {
         <form
           className="animate-fade-up space-y-4 rounded-3xl border border-white/20 bg-white/95 p-6 shadow-2xl shadow-black/30 backdrop-blur"
           style={{ animationDelay: "90ms" }}
+          noValidate
           onSubmit={async (e) => {
             e.preventDefault();
+            setTried(true);
+            setError(null);
+            if (emailError || passwordError) return;
             setBusy(true);
-            const err = await signIn(email, password);
+            const err = await signIn(email.trim(), password);
             setError(err ? t(err) : null);
             setBusy(false);
             const fresh = (loc.state as { from?: string } | null)?.from;
             if (fresh && !err) nav(fresh, { replace: true });
           }}
         >
-          <Field label={t("Company email")} htmlFor="email">
-            <Input id="email" type="email" dir="ltr" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Field label={t("Company email")} htmlFor="email" error={tried ? emailError : null}>
+            <Input id="email" type="email" dir="ltr" autoComplete="username" inputMode="email" maxLength={LIMITS.email} aria-invalid={tried && !!emailError} value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
-          <Field label={t("Password")} htmlFor="password">
-            <Input id="password" type="password" dir="ltr" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Field label={t("Password")} htmlFor="password" error={tried ? passwordError : null}>
+            <Input id="password" type="password" dir="ltr" autoComplete="current-password" maxLength={LIMITS.password} aria-invalid={tried && !!passwordError} value={password} onChange={(e) => setPassword(e.target.value)} />
           </Field>
           {error && <Alert>{error}</Alert>}
           <Button type="submit" loading={busy} className="w-full">{t("Sign in")}</Button>

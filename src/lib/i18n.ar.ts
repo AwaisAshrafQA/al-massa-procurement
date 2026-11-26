@@ -337,6 +337,16 @@ export const AR: Record<string, string> = {
   "at this step": "في هذه المرحلة",
   "This request can no longer be edited. It may have been sent or changed by someone else. Reload to see its current state.": "لم يعد بالإمكان تعديل هذا الطلب. ربما أُرسل أو عدّله شخص آخر. أعد التحميل لرؤية حالته الحالية.",
   "Finish or remove the highlighted lines before saving.": "أكمل الأسطر المظللة أو احذفها قبل الحفظ.",
+  "A request can have at most {n} lines.": "يمكن أن يحتوي الطلب على {n} بنداً كحد أقصى.",
+  "Choose a date within the next 12 months.": "اختر تاريخاً خلال الأشهر الاثني عشر القادمة.",
+  "Choose the agreed delivery date.": "اختر تاريخ التسليم المتفق عليه.",
+  "Enter a number above 0, with up to 3 decimals.": "أدخل رقماً أكبر من 0، بثلاث خانات عشرية كحد أقصى.",
+  "Enter a valid email address, e.g. name@company.com.": "أدخل بريداً إلكترونياً صحيحاً، مثل name@company.com.",
+  "Enter your company email.": "أدخل بريد الشركة الإلكتروني.",
+  "Enter your password.": "أدخل كلمة المرور.",
+  "The required date must be within the next 12 months.": "يجب أن يكون تاريخ الحاجة خلال الأشهر الاثني عشر القادمة.",
+  "The delivery date must be within the next 12 months.": "يجب أن يكون تاريخ التسليم خلال الأشهر الاثني عشر القادمة.",
+  "A request can have at most 50 lines.": "يمكن أن يحتوي الطلب على 50 بنداً كحد أقصى.",
 };
 
 /** Database messages built from parts (see _require_status, _require_comment, _not_own_request). */
@@ -346,7 +356,12 @@ const VERB: Record<string, string> = {
   "confirm receipt": "تأكيد الاستلام", "cancel": "الإلغاء", "return": "الإعادة", "forward": "التحويل",
   "return a request": "إعادة الطلب", "reject a request": "رفض الطلب", "cancel a request": "إلغاء الطلب",
 };
+const FIELD: Record<string, string> = {
+  "Purpose": "الغرض", "The urgent reason": "سبب الاستعجال", "The item description": "وصف البند",
+  "Size / spec": "المقاس / المواصفات", "Line notes": "ملاحظات البند", "The comment": "التعليق", "Delivery notes": "ملاحظات التسليم",
+};
 export const AR_PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [/^(.+) must be (d+) characters or fewer.$/, (m) => `${FIELD[m[1]] ?? m[1]}: الحد الأقصى ${m[2]} حرفاً.`],
   [/^Cannot (.+): the request is currently "(.+)"\.$/, (m) => `لا يمكن ${VERB[m[1]] ?? m[1]}: حالة الطلب حالياً «${m[2]}».`],
   [/^A comment is required to (.+)\.$/, (m) => `التعليق مطلوب من أجل ${VERB[m[1]] ?? m[1]}.`],
   [/^You cannot (.+) a request you raised yourself\.$/, (m) => `لا يمكنك ${VERB[m[1]] ?? m[1]} لطلب قمت برفعه بنفسك.`],

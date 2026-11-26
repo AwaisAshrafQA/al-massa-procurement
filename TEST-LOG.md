@@ -196,3 +196,45 @@ Native dropdown lists are drawn by the browser, not the app: desktop Chrome show
 - works by keyboard (arrows, Home/End, type-ahead, Enter/Space, Esc) and is announced as a list box to screen readers.
 
 Checked at 360 and 1280 px: tap to pick, keyboard pick, Esc leaves the value unchanged, type-ahead, tap outside closes, list fully on screen (top and lower fields, and inside the order sheet), status filter shows only matching requests.
+
+## 14. Form validation and injection protection, 26 Nov 2026
+
+**Server (the real protection), migration `20261126000007_input_limits.sql`.** Applies to every write, whether from the app or a direct API call:
+
+| Rule | Limit |
+|---|---|
+| Purpose / BOQ reference | 200 characters |
+| Urgent reason | 300 |
+| Item description, size/spec, line notes | 200 / 100 / 300 |
+| Comments on any decision, delivery notes | 1,000 |
+| Required date (on send), agreed delivery date | today to 12 months ahead |
+| Lines per request (on send) | 50 |
+| Invisible control characters and bidi override characters ("Trojan Source") | stripped; Arabic text and its direction marks kept |
+
+**Forms.** Every form now validates in the app with clear messages in English and Arabic before anything is sent:
+
+| Form | Checks |
+|---|---|
+| Sign-in | email required and well-formed, password required; the browser's own pop-ups are replaced by inline messages |
+| New / edit request | project, date (not past, within 12 months), item, quantity (above 0, up to 3 decimals, within limit), unit, urgent reason; length caps with counters; at most 50 lines |
+| Comment pop-ups (return, reject, cancel, approve, receipt) | required where mandatory; 1,000-character cap with counter |
+| Supplier and delivery | supplier and date required; date today to 12 months; note capped at 300 |
+| Search boxes | 100-character cap |
+
+**Injection.**
+
+- **Script/HTML injection (XSS):** text is always shown as plain text (React escapes it; nothing uses raw HTML).
+- **SQL injection:** every write goes through parameterised database functions and row-level security, and searches filter in the browser, so no query is built from typed text.
+- **Defence in depth:** the live site now sends security headers:
+  - a strict Content-Security-Policy (scripts only from the site itself, no inline scripts, no plugins, no framing);
+  - `X-Frame-Options: DENY` against clickjacking;
+  - `nosniff`, a referrer policy and a permissions policy;
+  - HSTS.
+
+  The theme script moved from inline to `public/boot.js` so the policy can stay strict.
+
+**Proof:**
+
+- `tests/edge.test.ts`: 24 tests. These cover limits at and over each boundary, stripped control and bidi characters, and HTML/script/SQL strings stored verbatim with nothing altered or run.
+- `scripts/validation-check.ts`: 13 browser checks. Every form's messages and caps are tested, and HTML/script/SQL saved through the form is shown as plain text and never runs.
+- `scripts/csp-check.ts`: the policy is applied to the production build. Sign-in, every page, fonts and the theme script work with 0 policy violations.

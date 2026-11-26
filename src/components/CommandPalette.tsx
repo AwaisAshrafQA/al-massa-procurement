@@ -65,6 +65,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           <Search className="h-5 w-5 text-slate-400" />
           <input
             ref={inputRef}
+            maxLength={100}
             value={q}
             onChange={(e) => { setQ(e.target.value); setActive(0); }}
             onKeyDown={(e) => {

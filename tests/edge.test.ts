@@ -107,3 +107,71 @@ describe("order details", () => {
     await ok("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: sup, p_delivery_date: dubaiDate(0) });
   });
 });
+
+describe("input limits and injection attempts", () => {
+  const long = (n: number) => "x".repeat(n);
+
+  it("comments over 1,000 characters are refused; 1,000 is fine", async () => {
+    const id = await requestAt("pending_procurement");
+    await refused("proc1", "rpc_return_to_site", { p_request_id: id, p_comment: long(1001) }, /1000 characters or fewer/);
+    await ok("proc1", "rpc_return_to_site", { p_request_id: id, p_comment: long(1000) });
+  });
+
+  it("purpose, urgent reason and line text have length limits", async () => {
+    const c = await as("se1");
+    const id = await draft("se1", "155", { lines: 0 });
+    expect((await c.from("purchase_requests").update({ purpose: long(201) }).eq("id", id)).error?.message).toMatch(/Purpose must be 200/);
+    expect((await c.from("purchase_requests").update({ urgency_reason: long(301) }).eq("id", id)).error?.message).toMatch(/urgent reason must be 300/);
+    const line = { request_id: id, line_no: 1, unit: "PCS", qty: 1 };
+    expect((await c.from("request_lines").insert({ ...line, description: long(201) })).error?.message).toMatch(/description must be 200/);
+    expect((await c.from("request_lines").insert({ ...line, description: "ok", size_spec: long(101) })).error?.message).toMatch(/Size \/ spec must be 100/);
+    expect((await c.from("request_lines").insert({ ...line, description: "ok", notes: long(301) })).error?.message).toMatch(/Line notes must be 300/);
+  });
+
+  it("control characters and bidi overrides are stripped; Arabic text is kept", async () => {
+    const c = await as("se1");
+    const id = await draft("se1", "155", { lines: 0 });
+    await c.from("request_lines").insert({ request_id: id, line_no: 1, unit: "PCS", qty: 1, description: "Pipe\u0007‮ 2⁦in\u0000".replace("\u0000", ""), notes: "خرسانة‏ جاهزة" });
+    const { data } = await admin.from("request_lines").select("description,notes").eq("request_id", id).single();
+    expect(data!.description).toBe("Pipe 2in");
+    expect(data!.notes).toBe("خرسانة‏ جاهزة");
+  });
+
+  it("HTML, script and SQL typed into fields are stored as plain text and change nothing", async () => {
+    const c = await as("se1");
+    const nasty = `<script>alert(1)</script><img src=x onerror=alert(2)> '; drop table purchase_requests; -- " or 1=1`;
+    const id = await draft("se1", "155", { lines: 0 });
+    expect((await c.from("purchase_requests").update({ purpose: nasty.slice(0, 200) }).eq("id", id)).error).toBeNull();
+    await c.from("request_lines").insert({ request_id: id, line_no: 1, unit: "PCS", qty: 1, description: nasty.slice(0, 200) });
+    const { data } = await admin.from("purchase_requests").select("purpose, request_lines(description)").eq("id", id).single();
+    expect(data!.purpose).toBe(nasty.slice(0, 200));
+    expect((data!.request_lines as { description: string }[])[0].description).toBe(nasty.slice(0, 200));
+    const { count } = await admin.from("purchase_requests").select("id", { count: "exact", head: true });
+    expect(count).toBeGreaterThan(50); // table still there
+    // a comment with SQL in it is just text too
+    await ok("se1", "rpc_send_request", { p_request_id: id });
+    await ok("proc1", "rpc_return_to_site", { p_request_id: id, p_comment: "x'); delete from activity_log; --" });
+    const log = await admin.from("activity_log").select("comment").eq("request_id", id).eq("action", "returned_to_site").single();
+    expect(log.data!.comment).toBe("x'); delete from activity_log; --");
+  });
+
+  it("required date more than 12 months ahead is refused on send", async () => {
+    const id = await draft("se1", "155", { days: 400 });
+    await refused("se1", "rpc_send_request", { p_request_id: id }, /within the next 12 months/);
+  });
+
+  it("more than 50 lines is refused on send", async () => {
+    const id = await draft("se1", "155", { lines: 51 });
+    await refused("se1", "rpc_send_request", { p_request_id: id }, /at most 50 lines/);
+  });
+
+  it("delivery date more than 12 months ahead is refused", async () => {
+    const id = await requestAt("approved_sourcing");
+    await refused("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: await supplierId(), p_delivery_date: dubaiDate(400) }, /within the next 12 months/);
+  });
+
+  it("receipt notes over 1,000 characters are refused", async () => {
+    const id = await requestAt("ordered");
+    await refused("se1", "rpc_confirm_receipt", { p_request_id: id, p_notes: long(1001) }, /Delivery notes must be 1000/);
+  });
+});
