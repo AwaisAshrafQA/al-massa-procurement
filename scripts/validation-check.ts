@@ -130,8 +130,9 @@ let draftId: string | null = null;
   draftId = p.url().split("/").pop()!;
   await p.waitForLoadState("networkidle");
   await p.waitForTimeout(800);
-  const shownLiterally = (await p.getByText("<script>window.__pwned=2</script>", { exact: false }).count()) > 0;
-  check("form: HTML/script/SQL is saved and shown as plain text, never runs", shownLiterally && (await pwned()) === 0 && dialogs === 0 && (await text("img[src=x]")) === false);
+  const shownLiterally = await p.getByText("<script>window.__pwned=2</script>", { exact: false }).first().waitFor({ timeout: 10000 }).then(() => true, () => false);
+  const pw = await pwned(); const img = await text("img[src=x]");
+  check("form: HTML/script/SQL is saved and shown as plain text, never runs", shownLiterally && pw === 0 && dialogs === 0 && img === false, `shown=${shownLiterally} pwned=${pw} dialogs=${dialogs} img=${img} url=${p.url()}`);
 }
 
 // ---- Comment pop-up (Procurement returns a request)
