@@ -30,7 +30,7 @@ const check = (name: string, ok: boolean, detail = "") => { if (!ok) fails++; co
 async function tile(label: string) {
   const card = p.getByRole("button", { name: `${label}: show requests` });
   await p.waitForTimeout(1500); // let the count-up animation finish
-  const number = Number((await card.locator("xpath=..").locator("div.text-3xl").innerText()).replace(/[^\d.]/g, ""));
+  const number = Number((await card.locator("xpath=..").locator("div.font-extrabold").innerText()).replace(/[^\d.]/g, ""));
   await card.locator("xpath=..").locator("button[aria-hidden]").click({ force: true });
   await dialog().waitFor();
   return number;
@@ -54,7 +54,7 @@ await close();
 // 3. Bar charts
 async function bars(chartTitle: string) {
   const card = p.locator("div.rounded-2xl", { has: p.getByRole("heading", { name: chartTitle }) }).last();
-  const rows = card.locator('li[role="button"]');
+  const rows = card.locator('li > [role="button"]');
   const count = await rows.count();
   let okAll = true;
   for (let i = 0; i < count; i++) {

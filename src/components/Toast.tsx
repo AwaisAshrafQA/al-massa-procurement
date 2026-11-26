@@ -59,7 +59,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <div className="text-sm font-semibold text-slate-900">{t.title}</div>
               {t.body && <div className="mt-0.5 text-sm text-slate-600">{t.body}</div>}
             </div>
-            <button onClick={(e) => { e.stopPropagation(); dismiss(t.id); }} className="-me-1 rounded-lg p-1 text-slate-400 hover:bg-slate-100" aria-label="Dismiss">
+            <button onClick={(e) => { e.stopPropagation(); dismiss(t.id); }} className="-me-1 rounded-lg p-1 text-slate-500 hover:bg-slate-100" aria-label="Dismiss">
               <X className="h-4 w-4" />
             </button>
           </div>

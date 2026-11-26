@@ -76,7 +76,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             placeholder={t("Search requests, projects or commands…")}
             className="h-14 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
           />
-          <kbd className="hidden rounded-md border border-slate-200 px-1.5 py-0.5 text-[11px] font-semibold text-slate-400 sm:block">Esc</kbd>
+          <kbd className="hidden rounded-md border border-slate-200 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 sm:block">Esc</kbd>
         </div>
         <ul className="max-h-[55vh] overflow-auto p-2">
           {results.length === 0 && <li className="px-3 py-8 text-center text-sm text-slate-500">{t("No matches")}</li>}

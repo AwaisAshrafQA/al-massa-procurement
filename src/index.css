@@ -42,7 +42,7 @@
   --viz-1: #2c4a8a;
   --viz-grid: #e1e0d9;
   --viz-base: #c3c2b7;
-  --viz-muted: #898781;
+  --viz-muted: #6b6a64; /* 5:1 on white for small axis labels */
   --viz-track: #f1f5f9;
 }
 .dark {

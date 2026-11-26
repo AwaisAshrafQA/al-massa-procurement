@@ -13,9 +13,10 @@ import { useI18n } from "@/lib/i18n";
 import { ItemIcon } from "@/lib/itemIcons";
 import { stagger } from "@/lib/motion";
 
-function Info({ label, children }: { label: string; children: ReactNode }) {
+function Info({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+  // One <div> per term/description pair: the only wrapper a <dl> allows.
   return (
-    <div>
+    <div className={className}>
       <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
       <dd className="mt-0.5 text-sm text-slate-900">{children}</dd>
     </div>
@@ -73,8 +74,8 @@ export function RequestDetail() {
               <Info label={t("Requested by")}>{r.requester?.full_name}</Info>
               <Info label={t("Required on site")}>{fmtDate(r.required_date)}</Info>
               <Info label={t("Sent")}>{r.sent_at ? fmtDateTime(r.sent_at) : t("Not sent yet")}</Info>
-              {r.urgency === "urgent" && <div className="col-span-2 sm:col-span-3"><Info label={t("Why urgent")}>{r.urgency_reason}</Info></div>}
-              {r.purpose && <div className="col-span-2 sm:col-span-3"><Info label={t("Purpose / BOQ reference")}>{r.purpose}</Info></div>}
+              {r.urgency === "urgent" && <Info className="col-span-2 sm:col-span-3" label={t("Why urgent")}>{r.urgency_reason}</Info>}
+              {r.purpose && <Info className="col-span-2 sm:col-span-3" label={t("Purpose / BOQ reference")}>{r.purpose}</Info>}
             </dl>
           </Card>
 

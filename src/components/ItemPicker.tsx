@@ -89,7 +89,14 @@ export function ItemPicker({ items, value, onPick, invalid, id }: {
         ref={inputRef}
         value={q}
         onChange={(e) => { setQ(e.target.value); setOpen(true); setActive(0); }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          setOpen(true);
+          // On phones the form's Save bar and the bottom nav cover the lower half of the
+          // screen: bring the search box up so the results open in clear space.
+          if (window.matchMedia("(max-width: 767px)").matches) {
+            setTimeout(() => inputRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }), 50);
+          }
+        }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, choices.length - 1)); }
@@ -102,12 +109,12 @@ export function ItemPicker({ items, value, onPick, invalid, id }: {
         aria-expanded={open}
         aria-invalid={invalid || undefined}
         className={cn(
-          "block w-full rounded-xl border-0 bg-white py-2.5 pe-3 ps-10 shadow-sm ring-1 ring-inset placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-brand-500",
+          "block w-full scroll-mt-24 rounded-xl border-0 bg-white py-2.5 pe-3 ps-10 shadow-sm outline-none ring-1 ring-inset placeholder:text-slate-400 focus:shadow-glow focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500",
           invalid ? "ring-rose-400" : "ring-slate-300",
         )}
       />
       {open && choices.length > 0 && (
-        <ul role="listbox" className="absolute z-20 mt-1 max-h-80 w-full animate-scale-in overflow-auto rounded-xl bg-white p-1 text-sm shadow-lift ring-1 ring-slate-200">
+        <ul role="listbox" className="absolute z-20 mt-1 max-h-[min(20rem,42dvh)] w-full overscroll-contain animate-scale-in overflow-auto rounded-xl bg-white p-1 text-sm shadow-lift ring-1 ring-slate-200">
           {choices.map((c, i) => (
             <li
               key={c.kind === "item" ? c.item.id : "text"}

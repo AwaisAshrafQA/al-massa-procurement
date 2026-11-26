@@ -47,7 +47,7 @@ export function Board() {
                 <span className="ms-auto rounded-full bg-slate-200/70 px-2 text-xs font-bold text-slate-600">{rows.length}</span>
               </div>
               <div className="min-h-[120px] space-y-2.5 rounded-2xl bg-slate-100/70 p-2.5 ring-1 ring-inset ring-slate-200/60 dark:bg-white/[.03]">
-                {rows.length === 0 && <div className="py-6 text-center text-xs text-slate-400">{t("Nothing here")}</div>}
+                {rows.length === 0 && <div className="py-6 text-center text-xs text-slate-500">{t("Nothing here")}</div>}
                 {rows.map((r, i) => {
                   const fresh = Date.now() - new Date(r.updated_at).getTime() < 20_000;
                   return (

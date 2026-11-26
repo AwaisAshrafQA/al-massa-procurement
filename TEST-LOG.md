@@ -170,3 +170,18 @@ Every screen and the main pop-ups (drill-down, search, notifications, account me
 | 9 | Dropdown arrow padding was on the wrong side in Arabic. | Logical padding (`pe-8`). |
 
 After the fixes: 170 screens (17 per width × 5 widths × 2 languages), 0 with sideways overflow. Drill-down and save checks still pass.
+
+## 12. Dropdowns, dark mode and accessibility, 26 Nov 2026
+
+`scripts/responsive-check.ts` now also runs in dark mode (`THEME=dark`) and runs the axe-core WCAG 2.2 A/AA scan on every screen (`AXE=1`). `scripts/viewport-shots.ts` captures dropdowns open at phone size.
+
+| # | Issue found | Fix |
+|---|---|---|
+| 1 | Dropdowns looked different on every phone: browser's own arrow jammed against the edge (grey bubble on iOS), thick black focus outline instead of the app's ring, long text ran under the arrow. | One custom style for every select: no native look, app chevron on the reading-end side (flips in Arabic), app focus ring, text ends with "…". |
+| 2 | Item search on lines lower in the form opened its results behind the Save/Send bar and bottom nav, so they could not be seen or tapped. | On phones the search box scrolls near the top when focused; results list capped to the visible height. Same focus ring as other fields. |
+| 3 | Low contrast (WCAG 1.4.3): faint grey captions, chart axis labels, bottom-nav labels, notification and nav badges, the "Closed" chip, progress-bar step labels, the Esc hint. | Darker text tokens (all now 4.5:1 or better); icon buttons raised to 3:1+. |
+| 4 | Chart bars were list items acting as buttons, which breaks the list for screen readers. | Clickable element moved inside the list item. |
+| 5 | "Requests sent per day" columns were 18 px wide on phones (below the 24 px tap minimum). | Phones show the last 7 days (about 32 px per column); wider screens keep 14. |
+| 6 | Request details used nested wrappers inside the definition list. | Flattened to one wrapper per label and value. |
+
+Drill-down and form-save checks still pass.

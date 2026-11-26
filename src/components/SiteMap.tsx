@@ -97,7 +97,7 @@ export function SiteMap({ sites }: { sites: MapSite[] }) {
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-[11px] text-slate-400">{t("Schematic map, approximate site locations.")} {t("Pin label: project · open requests.")}</p>
+      <p className="mt-2 text-[11px] text-slate-500">{t("Schematic map, approximate site locations.")} {t("Pin label: project · open requests.")}</p>
     </div>
   );
 }

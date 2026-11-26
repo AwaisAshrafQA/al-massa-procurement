@@ -37,13 +37,31 @@ export function Button({
 }
 
 const field =
-  "block w-full rounded-xl border-0 bg-white px-3.5 py-2.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 transition-shadow placeholder:text-slate-400 hover:ring-slate-300 focus:shadow-glow focus:ring-2 focus:ring-inset focus:ring-brand-500 disabled:bg-slate-50 disabled:text-slate-500";
+  "block w-full rounded-xl border-0 bg-white px-3.5 py-2.5 text-slate-900 shadow-sm outline-none ring-1 ring-inset ring-slate-200 transition-shadow placeholder:text-slate-400 hover:ring-slate-300 focus:shadow-glow focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 disabled:bg-slate-50 disabled:text-slate-500";
 
 export function Input({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...p} className={cn(field, className)} />;
 }
-export function Select({ className, children, ...p }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...p} className={cn(field, "pe-8", className)}>{children}</select>;
+
+// One look for every dropdown on every phone: no native chrome (iOS draws its own grey
+// bubble, Chrome jams its arrow against the edge), our own chevron on the reading-end side,
+// and long option text cut with an ellipsis instead of overlapping the arrow.
+const CHEVRON = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z' clip-rule='evenodd'/%3E%3C/svg%3E")`;
+export function Select({ className, children, style, ...p }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...p}
+      style={{ backgroundImage: CHEVRON, ...style }}
+      className={cn(
+        field,
+        "cursor-pointer appearance-none truncate bg-[length:1.15rem] bg-no-repeat pe-10",
+        "bg-[position:right_0.8rem_center] rtl:bg-[position:left_0.8rem_center]",
+        className,
+      )}
+    >
+      {children}
+    </select>
+  );
 }
 export function Textarea({ className, ...p }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...p} className={cn(field, className)} />;

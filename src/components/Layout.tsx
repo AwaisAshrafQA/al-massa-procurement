@@ -137,20 +137,20 @@ export function Layout() {
         <div className="flex">
           {links.map((l) => (
             <NavLink key={l.to} to={l.to} end
-              className={({ isActive }) => cn("relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold transition-colors", isActive ? "text-brand-600" : "text-slate-400")}>
+              className={({ isActive }) => cn("relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold transition-colors", isActive ? "text-brand-600" : "text-slate-500")}>
               {({ isActive }) => (
                 <>
                   <span className={cn("grid h-8 w-12 place-items-center rounded-full transition-all", isActive && "bg-brand-50")}>
                     <l.icon className="h-5 w-5" />
                   </span>
                   {l.label}
-                  {l.badge > 0 && <span className="absolute end-[calc(50%-1.6rem)] top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">{l.badge}</span>}
+                  {l.badge > 0 && <span className="absolute end-[calc(50%-1.6rem)] top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">{l.badge}</span>}
                 </>
               )}
             </NavLink>
           ))}
           {raises && (
-            <NavLink to="/requests/new" aria-label={t("New request")} className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold text-slate-400">
+            <NavLink to="/requests/new" aria-label={t("New request")} className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold text-slate-500">
               {({ isActive }) => (
                 <>
                   <span className={cn("grid h-8 w-12 place-items-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-md shadow-brand-500/40", isActive && "ring-2 ring-brand-200")}>

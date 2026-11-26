@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, ClipboardList, Inbox as InboxIcon, MapPin, PackageCheck, Plus, Timer, UserRound, Zap } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { Link } from "react-router-dom";
 import { BarList, ChartCard, ColumnChart, ProgressRing, StatTile, TrendChip } from "@/components/charts";
 import { DrillPanel, type DrillState } from "@/components/DrillPanel";
@@ -25,6 +25,11 @@ export function Dashboard() {
 
   const m = useMemo(() => (requests.data && logs.data ? computeMetrics(requests.data, logs.data) : null), [requests.data, logs.data]);
   const [drill, setDrill] = useState<DrillState>(null);
+  // Phones get the last 7 days so each column stays a comfortable tap target (24px+).
+  const narrow = useSyncExternalStore(
+    (cb) => { const q = window.matchMedia("(max-width: 639px)"); q.addEventListener("change", cb); return () => q.removeEventListener("change", cb); },
+    () => window.matchMedia("(max-width: 639px)").matches,
+  );
   const waiting = useMemo(() => (me && requests.data ? requests.data.filter((r) => waitingOnMe(r, me)).length : 0), [requests.data, me]);
   const decides = has("procurement") || has("project_manager") || has("admin");
 
@@ -102,7 +107,7 @@ export function Dashboard() {
                     <div className="flex items-center gap-2">
                       <span className="rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-extrabold text-brand-700">{c.p.project_no}</span>
                       <span className="truncate font-semibold text-slate-900">{c.p.name}</span>
-                      {c.p.status === "closed" && <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">{t("Closed")}</span>}
+                      {c.p.status === "closed" && <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{t("Closed")}</span>}
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
                       <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{c.p.location}</span>
@@ -131,9 +136,12 @@ export function Dashboard() {
       {/* Charts */}
       {m && (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <ChartCard title={t("Requests sent per day")} subtitle={t("Last 14 days")} delay={320}
+          <ChartCard title={t("Requests sent per day")} subtitle={t(narrow ? "Last 7 days" : "Last 14 days")} delay={320}
             table={{ head: [t("Day"), t("Sent")], rows: m.perDay.map((d) => [d.label, String(d.value)]) }}>
-            <ColumnChart data={m.perDay} onSelect={(i) => setDrill({ title: t("Requests sent on {day}", { day: m.perDay[i].label }), drill: m.perDay[i].drill })} />
+            {(() => {
+              const days = narrow ? m.perDay.slice(-7) : m.perDay;
+              return <ColumnChart data={days} onSelect={(i) => setDrill({ title: t("Requests sent on {day}", { day: days[i].label }), drill: days[i].drill })} />;
+            })()}
           </ChartCard>
 
           <ChartCard title={t("Average time at each step")} subtitle={t("Where requests wait longest")} delay={380}

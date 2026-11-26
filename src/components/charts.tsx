@@ -20,7 +20,7 @@ export function ChartCard({ title, subtitle, children, table, className, delay =
         </div>
         <button
           onClick={() => setAsTable((v) => !v)}
-          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600"
           aria-label={asTable ? tr("Show chart") : tr("Show as table")}
           title={asTable ? tr("Show chart") : tr("Show as table")}
         >
@@ -59,8 +59,10 @@ export function BarList({ data, format = (v) => String(v), tooltip, onSelect }: 
   return (
     <ul className="space-y-3.5">
       {data.map((d, i) => (
-        <li
-          key={d.label}
+        // The <li> stays a plain list item; the clickable part is the inner element, so screen
+        // readers still announce "list, 8 items".
+        <li key={d.label}>
+        <div
           tabIndex={0}
           role={onSelect ? "button" : undefined}
           aria-label={onSelect ? tr("{label}: {value}. Show requests", { label: d.label, value: format(d.value) }) : undefined}
@@ -89,6 +91,7 @@ export function BarList({ data, format = (v) => String(v), tooltip, onSelect }: 
               {tooltip(d, d.value / total)}{onSelect && d.value > 0 ? ` · ${tr("click for details")}` : ""}
             </div>
           )}
+        </div>
         </li>
       ))}
     </ul>

@@ -195,7 +195,7 @@ export function RequestForm() {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-slate-500">{t("Line {n}", { n: i + 1 })}</span>
                 {lines.length > 1 && (
-                  <button type="button" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} className="-me-2 rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label={t("Remove line {n}", { n: i + 1 })}>
+                  <button type="button" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} className="-me-2 rounded-lg p-2 text-slate-500 hover:bg-rose-50 hover:text-rose-600" aria-label={t("Remove line {n}", { n: i + 1 })}>
                     <Trash2 className="h-4 w-4" />
                   </button>
                 )}

@@ -3,7 +3,8 @@
 // screen, or an element past the edge that is not inside a scrolling box) and saves a
 // screenshot of each for review. Read-only: opens dialogs but never submits them.
 // Usage: npx tsx scripts/responsive-check.ts <outDir>   (needs the dev server, or DEMO_URL)
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { chromium, type Page } from "playwright-core";
 import { adminClient, DEMO_PASSWORD, USERS, type UserKey } from "./lib";
 
@@ -13,6 +14,11 @@ mkdirSync(out, { recursive: true });
 const WIDTHS = (process.env.WIDTHS ?? "320,375,768,1024,1440").split(",").map(Number);
 const LANGS = (process.env.LANGS ?? "en,ar").split(",") as ("en" | "ar")[];
 const SHOTS = process.env.SHOTS ?? "320,375,768"; // widths to keep screenshots for
+const THEME = process.env.THEME ?? "light"; // light | dark
+// AXE=1 also runs the axe-core accessibility scan (WCAG 2.2 A/AA) on every screen.
+const AXE = process.env.AXE === "1" ? readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8") : null;
+type Finding = { impact: string; help: string; screens: Set<string>; examples: Set<string> };
+const findings = new Map<string, Finding>();
 
 const db = adminClient();
 const byNo = async (no: string) => (await db.from("purchase_requests").select("id").eq("request_no", no).single()).data!.id as string;
@@ -77,7 +83,7 @@ let problems = 0, checked = 0;
 for (const lang of LANGS) {
   for (const width of WIDTHS) {
     const ctx = await browser.newContext({ viewport: { width, height: width < 700 ? 800 : 900 }, timezoneId: "Asia/Dubai", hasTouch: width < 700 });
-    await ctx.addInitScript((l) => { localStorage.setItem("am.lang", l); localStorage.setItem("am.swipehint", "0"); }, lang);
+    await ctx.addInitScript((l) => { localStorage.setItem("am.lang", l[0]); localStorage.setItem("am.theme", l[1]); localStorage.setItem("am.swipehint", "0"); }, [lang, THEME]);
     await ctx.addInitScript("window.__name = (f) => f");
     const p = await ctx.newPage();
     p.on("pageerror", (e) => console.log(`  page error @${width}/${lang}: ${e.message.slice(0, 150)}`));
@@ -95,7 +101,7 @@ for (const lang of LANGS) {
         }
         current = s.who;
       }
-      await p.goto(BASE + s.path);
+      await p.goto(BASE + s.path).catch(async () => { await p.waitForTimeout(800); await p.goto(BASE + s.path); });
       await p.waitForLoadState("networkidle");
       await p.waitForTimeout(1300);
       try { if (s.then) await s.then(p); } catch (e) { console.log(`  could not open ${s.name} @${width}/${lang}: ${(e as Error).message.split("\n")[0]}`); }
@@ -106,11 +112,32 @@ for (const lang of LANGS) {
         console.log(`ISSUE ${lang} ${width}px ${s.name}: page wider by ${r.pageOverflow}px`);
         for (const o of r.offenders) console.log(`      ${o}`);
       }
-      if (SHOTS.split(",").map(Number).includes(width)) await p.screenshot({ path: `${out}/${lang}-${width}-${s.name}.png`, fullPage: !s.then });
+      if (AXE) {
+        await p.addScriptTag({ content: AXE });
+        const res = await p.evaluate(async () => {
+          const axe = (window as unknown as { axe: { run: (c: unknown, o: unknown) => Promise<{ violations: { id: string; impact: string; help: string; nodes: { target: string[]; failureSummary: string }[] }[] }> } }).axe;
+          const r = await axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } });
+          return r.violations.map((v) => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.slice(0, 12).map((n) => `${n.target.join(" ")} :: ${(n.failureSummary ?? "").split(String.fromCharCode(10)).slice(1, 2).join(" ").trim().slice(0, 140)}`) }));
+        });
+        for (const v of res) {
+          const fd = findings.get(v.id) ?? { impact: v.impact, help: v.help, screens: new Set<string>(), examples: new Set<string>() };
+          fd.screens.add(`${lang}/${width}/${s.name}`);
+          for (const n of v.nodes) { const key = n.split(" :: ")[1] ?? n; if (![...fd.examples].some((e) => e.endsWith(key)) && fd.examples.size < 30) fd.examples.add(`[${s.name}] ${n}`); }
+          findings.set(v.id, fd);
+        }
+      }
+      if (SHOTS.split(",").map(Number).includes(width)) await p.screenshot({ path: `${out}/${THEME}-${lang}-${width}-${s.name}.png`, fullPage: !s.then });
       await p.keyboard.press("Escape").catch(() => {});
     }
     await ctx.close();
   }
 }
 await browser.close();
-console.log(`\n${checked} screens checked, ${problems} with sideways overflow`);
+console.log(`\n${checked} screens checked (${THEME}), ${problems} with sideways overflow`);
+if (AXE) {
+  console.log(`\nAccessibility: ${findings.size} rule(s) failing`);
+  for (const [id, fd] of findings) {
+    console.log(`\n[${fd.impact}] ${id}: ${fd.help} (on ${fd.screens.size} screens)`);
+    for (const e of fd.examples) console.log(`    ${e}`);
+  }
+}

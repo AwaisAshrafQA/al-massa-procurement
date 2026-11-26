@@ -57,7 +57,7 @@ export function Stepper({ status }: { status: Status }) {
               </span>
               <span className={cn(
                 "mt-1.5 hidden text-[11px] font-medium sm:block",
-                done || current ? "text-slate-800" : "text-slate-400",
+                done || current ? "text-slate-800" : "text-slate-500",
               )}>{t(label)}</span>
             </li>
           );

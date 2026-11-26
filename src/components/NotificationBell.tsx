@@ -40,7 +40,7 @@ export function NotificationBell() {
       >
         <Bell className={cn("h-5 w-5", unread > 0 && "origin-top animate-[bell_1.2s_ease-in-out_2]")} />
         {unread > 0 && (
-          <span dir="ltr" className="absolute -end-0.5 -top-0.5 grid h-[18px] min-w-[18px] animate-scale-in place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-brand-800">
+          <span dir="ltr" className="absolute -end-0.5 -top-0.5 grid h-[18px] min-w-[18px] animate-scale-in place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white ring-2 ring-brand-800">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -66,7 +66,7 @@ export function NotificationBell() {
                     <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", isNew ? "bg-brand-500" : "bg-transparent")} />
                     <div className="min-w-0 text-sm">
                       <div><span className="font-semibold">{e.actor?.full_name}</span> <span className="text-slate-600">· {t(ACTION_LABEL[e.action] ?? e.action)}</span></div>
-                      <div className="text-xs text-slate-500">{e.request?.request_no} · {t("project {no}", { no: e.request?.project?.project_no ?? "" })} · {ago(e.created_at)}</div>
+                      <div className="text-xs text-slate-600">{e.request?.request_no} · {t("project {no}", { no: e.request?.project?.project_no ?? "" })} · {ago(e.created_at)}</div>
                     </div>
                   </Link>
                 </li>

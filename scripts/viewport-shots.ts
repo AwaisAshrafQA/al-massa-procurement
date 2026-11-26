@@ -9,6 +9,7 @@ const out = process.argv[2] ?? "viewport";
 mkdirSync(out, { recursive: true });
 const width = Number(process.env.W ?? 320);
 const lang = process.env.LANG_UI ?? "en";
+const theme = process.env.THEME ?? "light";
 const db = adminClient();
 const byNo = async (no: string) => (await db.from("purchase_requests").select("id").eq("request_no", no).single()).data!.id as string;
 
@@ -19,6 +20,10 @@ const SPOTS: Spot[] = [
   { name: "drill", who: "admin", path: "/overview", act: async (p) => { await p.locator("button.absolute.inset-0[aria-hidden]").first().click({ force: true }); } },
   { name: "my-requests", who: "se1", path: "/requests" },
   { name: "form-bottom", who: "se1", path: "/requests/new", act: async (p) => { await p.mouse.wheel(0, 3000); } },
+  { name: "picker-line1", who: "se1", path: "/requests/new", act: async (p) => { const s = p.locator("input[role=combobox]").first(); await s.scrollIntoViewIfNeeded(); await s.click(); await s.type("ce"); } },
+  { name: "picker-line2", who: "se1", path: "/requests/new", act: async (p) => { await p.getByRole("button", { name: /Add line|إضافة بند/ }).click(); await p.waitForTimeout(400); const s = p.locator("input[role=combobox]").last(); await s.scrollIntoViewIfNeeded(); await s.click(); await s.type("pi"); } },
+  { name: "form-selects", who: "se1", path: "/requests/new", act: async (p) => { await p.locator("#project").selectOption({ index: 1 }); } },
+  { name: "inbox-all", who: "proc1", path: "/inbox", act: async (p) => { await p.getByRole("tab").nth(1).click(); } },
   { name: "detail-actions", who: "admin", path: `/requests/${await byNo("PR-2026-0097")}` },
   { name: "order-sheet", who: "proc1", path: `/requests/${await byNo("PR-2026-0098")}`, act: async (p) => { await p.getByRole("button", { name: /^(Record supplier|تسجيل)/ }).first().click(); } },
   { name: "return-sheet", who: "proc1", path: `/requests/${await byNo("PR-2026-0100")}`, act: async (p) => { await p.getByRole("button", { name: /^(Return to site|الإعادة إلى الموقع|إعادة إلى الموقع)/ }).first().click(); } },
@@ -27,7 +32,7 @@ const SPOTS: Spot[] = [
 const b = await chromium.launch({ channel: "chrome", headless: true });
 const ctx = await b.newContext({ viewport: { width, height: width < 700 ? 640 : 900 }, deviceScaleFactor: 2, hasTouch: true, timezoneId: "Asia/Dubai" });
 await ctx.addInitScript("window.__name = (f) => f");
-await ctx.addInitScript((l) => { localStorage.setItem("am.lang", l); localStorage.setItem("am.swipehint", "0"); }, lang);
+await ctx.addInitScript((l) => { localStorage.setItem("am.lang", l[0]); localStorage.setItem("am.theme", l[1]); localStorage.setItem("am.swipehint", "0"); }, [lang, theme]);
 const p = await ctx.newPage();
 let who: UserKey | null = null;
 for (const s of SPOTS) {
@@ -45,7 +50,7 @@ for (const s of SPOTS) {
   await p.waitForLoadState("networkidle");
   await p.waitForTimeout(1500);
   if (s.act) { await s.act(p); await p.waitForTimeout(1000); }
-  await p.screenshot({ path: `${out}/${lang}-${width}-${s.name}.png` });
+  await p.screenshot({ path: `${out}/${theme}-${lang}-${width}-${s.name}.png` });
 }
 await b.close();
 console.log("done");

@@ -135,6 +135,7 @@ export const AR: Record<string, string> = {
   "Al Ain": "العين",
   "Requests sent per day": "الطلبات المرسلة يومياً",
   "Last 14 days": "آخر 14 يوماً",
+  "Last 7 days": "آخر 7 أيام",
   "Day": "اليوم",
   "Sent": "أُرسل",
   "{day}: {n} sent": "{day}: {n} أُرسلت",
