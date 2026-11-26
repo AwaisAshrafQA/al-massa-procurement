@@ -40,7 +40,7 @@ export function Button({
 }
 
 const field =
-  "block w-full rounded-xl border-0 bg-white px-3.5 py-2.5 text-slate-900 shadow-sm outline-none ring-1 ring-inset ring-slate-200 transition-shadow placeholder:text-slate-400 hover:ring-slate-300 focus:shadow-glow focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 disabled:bg-slate-50 disabled:text-slate-500";
+  "block w-full rounded-xl border-0 bg-white px-3.5 py-2.5 text-slate-900 shadow-sm outline-none ring-1 ring-inset ring-slate-200 transition-shadow placeholder:text-slate-400 hover:ring-slate-300 focus:shadow-glow focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 disabled:bg-slate-50 disabled:text-slate-500 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-rose-400";
 
 export function Input({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...p} className={cn(field, className)} />;
@@ -218,8 +218,10 @@ export function Textarea({ className, ...p }: TextareaHTMLAttributes<HTMLTextAre
   return <textarea {...p} className={cn(field, className)} />;
 }
 
-export function Field({ label, htmlFor, hint, error, required, count, children }: {
+export function Field({ label, htmlFor, hint, error, warning, required, count, children }: {
   label: string; htmlFor?: string; hint?: string; error?: string | null; required?: boolean;
+  /** Amber, non-blocking note (shown when there is no error). */
+  warning?: string | null;
   /** Shows "used / max" once the text gets close to its limit. */
   count?: { value: string; max: number };
   children: ReactNode;
@@ -232,10 +234,12 @@ export function Field({ label, htmlFor, hint, error, required, count, children }
         {label} {required && <span className="text-rose-500" aria-hidden>*</span>}
       </label>
       {children}
-      {(error || hint || showCount) && (
+      {(error || warning || hint || showCount) && (
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            {error ? <p className="animate-fade-in text-sm text-rose-600" id={htmlFor ? `${htmlFor}-error` : undefined}>{error}</p> : hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
+            {error ? <p className="animate-fade-in text-sm text-rose-600" id={htmlFor ? `${htmlFor}-error` : undefined}>{error}</p>
+              : warning ? <p className="animate-fade-in text-sm text-amber-800">{warning}</p>
+              : hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
           </div>
           {showCount && (
             <span className={cn("shrink-0 text-xs tabular-nums", used >= count.max ? "font-semibold text-rose-600" : "text-slate-500")} aria-live="polite">

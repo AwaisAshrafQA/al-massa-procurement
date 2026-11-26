@@ -7,9 +7,9 @@ import { useToast } from "@/components/Toast";
 import { Alert, Button, Card, Field, Input, ListSkeleton, Select, Textarea, cn } from "@/components/ui";
 import { getRequest, listItems, listProjects, listUnits, rpc, saveRequest, type Line } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { normaliseDigits, todayDubai } from "@/lib/format";
+import { todayDubai } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
-import { addDays, LIMITS, validQty } from "@/lib/limits";
+import { addDays, LIMITS, qtyProblem, sanitizeQty } from "@/lib/limits";
 
 type Draft = Omit<Line, "qty"> & { key: string; qtyText: string };
 let seq = 0;
@@ -36,6 +36,10 @@ export function RequestForm() {
   const [purpose, setPurpose] = useState("");
   const [lines, setLines] = useState<Draft[]>([blankLine()]);
   const [tried, setTried] = useState(false);
+  // A field shows its message once the user has left it (or pressed Send), then updates live.
+  const [touched, setTouched] = useState<Set<string>>(() => new Set());
+  const touch = (k: string) => setTouched((s) => (s.has(k) ? s : new Set(s).add(k)));
+  const show = (k: string) => tried || touched.has(k);
   const [busy, setBusy] = useState<"save" | "send" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(!editing);
@@ -58,23 +62,24 @@ export function RequestForm() {
     setReason(r.urgency_reason ?? "");
     setPurpose(r.purpose ?? "");
     setLines(r.request_lines.length
-      ? r.request_lines.map((l) => ({ ...l, key: `l${++seq}`, qtyText: String(Number(l.qty)), size_spec: l.size_spec ?? "", notes: l.notes ?? "" }))
+      ? r.request_lines.map((l) => ({ ...l, key: `l${++seq}`, qtyText: sanitizeQty(String(Number(l.qty))), size_spec: l.size_spec ?? "", notes: l.notes ?? "" }))
       : [blankLine()]);
     setLoaded(true);
   }, [existing.data, loaded]);
 
   const today = todayDubai();
+  // Past dates are allowed (earlier days' requests can be entered); 12 months either side.
+  const minDate = addDays(today, -LIMITS.daysAhead);
   const maxDate = addDays(today, LIMITS.daysAhead);
   const lineErrors = lines.map((l) => ({
     item: !l.item_id && !(l.description ?? "").trim(),
-    qty: !validQty(normaliseDigits(l.qtyText)), // above 0, up to 3 decimals, within the database limit
+    qty: qtyProblem(l.qtyText, units.data?.find((u) => u.code === l.unit)), // above 0, 3 decimals, whole for counted units
     unit: !l.unit,
   }));
   const errors = {
     project: !projectId ? t("Choose a project.") : null,
     date: !requiredDate ? t("Choose the date it is needed on site.")
-      : requiredDate < today ? t("The date cannot be in the past.")
-      : requiredDate > maxDate ? t("Choose a date within the next 12 months.") : null,
+      : requiredDate < minDate || requiredDate > maxDate ? t("Choose a date within 12 months of today.") : null,
     reason: urgent && !reason.trim() ? t("Say why it is urgent.") : null,
     lines: lines.length === 0 ? t("Add at least one line.") : lines.length > LIMITS.lines ? t("A request can have at most {n} lines.", { n: LIMITS.lines }) : null,
   };
@@ -109,7 +114,7 @@ export function RequestForm() {
           urgency_reason: urgent ? reason.trim() || null : null,
           purpose: purpose.trim() || null,
         },
-        keep.map((l) => ({ ...l, qty: Number(normaliseDigits(l.qtyText)) })),
+        keep.map((l) => ({ ...l, qty: Number(l.qtyText) })),
       );
       if (send) {
         const res = await rpc("rpc_send_request", { p_request_id: savedId });
@@ -152,15 +157,17 @@ export function RequestForm() {
       )}
 
       <Card className="animate-fade-up space-y-4 p-4" style={{ animationDelay: "60ms" }}>
-        <Field label={t("Project")} htmlFor="project" required error={tried ? errors.project : null}>
-          <Select id="project" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+        <Field label={t("Project")} htmlFor="project" required error={show("project") ? errors.project : null}>
+          <Select id="project" value={projectId} onChange={(e) => { setProjectId(e.target.value); touch("project"); }}>
             <option value="" disabled>{t("Select project…")}</option>
             {myProjects.map((p) => <option key={p.id} value={p.id}>{p.project_no} · {p.name}{p.location ? ` (${p.location})` : ""}</option>)}
           </Select>
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={t("Required on site by")} htmlFor="rdate" required error={tried ? errors.date : null}>
-            <Input id="rdate" type="date" min={today} max={maxDate} value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} />
+          <Field label={t("Required on site by")} htmlFor="rdate" required error={show("rdate") ? errors.date : null}
+            warning={requiredDate && !errors.date && requiredDate < today ? t("This date has passed. That's fine when entering an earlier request.") : null}>
+            <Input id="rdate" type="date" min={minDate} max={maxDate} value={requiredDate} aria-invalid={show("rdate") && !!errors.date}
+              onChange={(e) => { setRequiredDate(e.target.value); if (e.target.value.length === 10) touch("rdate"); }} onBlur={() => touch("rdate")} />
           </Field>
           <Field label={t("Urgency")} required>
             <div className="grid grid-cols-2 gap-2" role="radiogroup">
@@ -175,8 +182,8 @@ export function RequestForm() {
           </Field>
         </div>
         {urgent && (
-          <Field label={t("Why is it urgent?")} htmlFor="reason" required error={tried ? errors.reason : null} count={{ value: reason, max: LIMITS.urgentReason }}>
-            <Input id="reason" maxLength={LIMITS.urgentReason} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("e.g. pour scheduled tomorrow")} />
+          <Field label={t("Why is it urgent?")} htmlFor="reason" required error={show("reason") ? errors.reason : null} count={{ value: reason, max: LIMITS.urgentReason }}>
+            <Input id="reason" maxLength={LIMITS.urgentReason} value={reason} onBlur={() => touch("reason")} aria-invalid={show("reason") && !!errors.reason} onChange={(e) => setReason(e.target.value)} placeholder={t("e.g. pour scheduled tomorrow")} />
           </Field>
         )}
         <Field label={t("Purpose / BOQ reference")} htmlFor="purpose" hint={t("Optional, e.g. “Footings concrete, phase 2”")} count={{ value: purpose, max: LIMITS.purpose }}>
@@ -201,11 +208,13 @@ export function RequestForm() {
                   </button>
                 )}
               </div>
-              <Field label={t("Item")} required error={tried && e.item ? t("Pick an item or type a description.") : null}>
+              <Field label={t("Item")} required error={show(`i-${l.key}`) && e.item ? t("Pick an item or type a description.") : null}
+                warning={(() => { const j = l.item_id ? lines.findIndex((x) => x.key !== l.key && x.item_id === l.item_id) : -1; return j >= 0 ? t("Also on line {n}. Combine them unless the spec differs.", { n: j + 1 }) : null; })()}>
                 <ItemPicker
                   items={items.data ?? []}
                   value={{ itemId: l.item_id, description: l.description }}
-                  invalid={tried && e.item}
+                  invalid={show(`i-${l.key}`) && e.item}
+                  onLeave={() => touch(`i-${l.key}`)}
                   onPick={({ item, description }) =>
                     update(l.key, item
                       ? { item_id: item.id, description: null, unit: item.default_unit, size_spec: item.size ?? "" }
@@ -213,11 +222,12 @@ export function RequestForm() {
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
-                <Field label={t("Quantity")} htmlFor={`q-${l.key}`} required error={tried && e.qty ? t("Enter a number above 0, with up to 3 decimals.") : null}>
-                  <Input id={`q-${l.key}`} inputMode="decimal" maxLength={13} value={l.qtyText} onChange={(ev) => update(l.key, { qtyText: normaliseDigits(ev.target.value) })} placeholder="0" />
+                <Field label={t("Quantity")} htmlFor={`q-${l.key}`} required error={show(`q-${l.key}`) && e.qty ? t(e.qty.msg, e.qty.vars) : null}>
+                  <Input id={`q-${l.key}`} inputMode="decimal" maxLength={13} value={l.qtyText} placeholder="0" aria-invalid={show(`q-${l.key}`) && !!e.qty}
+                    onChange={(ev) => update(l.key, { qtyText: sanitizeQty(ev.target.value) })} onBlur={() => touch(`q-${l.key}`)} />
                 </Field>
-                <Field label={t("Unit")} htmlFor={`u-${l.key}`} required error={tried && e.unit ? t("Choose a unit.") : null}>
-                  <Select id={`u-${l.key}`} value={l.unit} onChange={(ev) => update(l.key, { unit: ev.target.value })}>
+                <Field label={t("Unit")} htmlFor={`u-${l.key}`} required error={show(`u-${l.key}`) && e.unit ? t("Choose a unit.") : null}>
+                  <Select id={`u-${l.key}`} value={l.unit} onChange={(ev) => { update(l.key, { unit: ev.target.value }); touch(`u-${l.key}`); }}>
                     <option value="" disabled>{t("Unit…")}</option>
                     {units.data?.map((u) => <option key={u.code} value={u.code}>{u.code}</option>)}
                   </Select>

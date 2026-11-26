@@ -49,30 +49,69 @@ async function login(who: UserKey) {
   check("login: script in the email box does nothing", (await pwned()) === 0 && dialogs === 0);
 }
 
-// ---- New request form
-let draftId: string | null = null;
+// ---- Live validation while typing (no Send pressed)
 {
   await login("se1");
   await p.goto(BASE + "/requests/new");
   await p.waitForLoadState("networkidle");
+  const qty = p.locator("input[id^=q-]").first();
+  const typed: [string, string][] = [["-5", "5"], ["abc", ""], ["1e5", "15"], ["1,500", "1500"], ["٣٫٥", "3.5"], ["2.34567", "2.345"], ["--1.2.3", "1.23"], ["007", "7"]];
+  const wrong: string[] = [];
+  for (const [input, expect] of typed) {
+    await qty.fill("");
+    await qty.pressSequentially(input);
+    const v = await qty.inputValue();
+    if (v !== expect) wrong.push(`"${input}" → "${v}" (want "${expect}")`);
+  }
+  check("live: quantity box only accepts a clean positive number as you type", wrong.length === 0, wrong.join(" | "));
+
+  await qty.fill("0");
+  await p.locator("#purpose").click(); // leave the field
+  check("live: leaving a bad quantity shows the message without pressing Send", (await p.getByText("Enter a number above 0, with up to 3 decimals.").count()) === 1);
+  await qty.fill("2.5");
+  await p.locator("button[id^=u-]").first().click();
+  await p.getByRole("option", { name: "PCS", exact: true }).click();
+  check("live: 2.5 PCS is refused (counted unit)", (await p.getByText("PCS is counted in whole numbers.").count()) === 1);
+  await p.locator("button[id^=u-]").first().click();
+  await p.getByRole("option", { name: "KG", exact: true }).click();
+  check("live: 2.5 KG is accepted (measured unit)", (await p.getByText("is counted in whole numbers").count()) === 0 && (await p.getByText("Enter a number above 0").count()) === 0);
+
+  await p.locator("#rdate").fill(dubaiDate(-3));
+  check("live: a past date is allowed, with a gentle note", (await p.getByText("This date has passed.", { exact: false }).count()) === 1 && (await p.getByText("Choose a date within 12 months of today.").count()) === 0);
+  await p.locator("#rdate").fill(dubaiDate(-400));
+  check("live: more than 12 months back is flagged straight away", (await p.getByText("Choose a date within 12 months of today.").count()) === 1);
+
+  const search = p.locator("input[role=combobox]").first();
+  await search.fill("Scaffold clamps, galvanised");
+  await p.locator("#purpose").click();
+  check("live: typed item text is kept as free text when leaving the box", (await p.getByText("Scaffold clamps, galvanised").count()) === 1);
+  await p.getByRole("button", { name: "Add line" }).click();
+  const search2 = p.locator("input[role=combobox]").last();
+  await search2.fill("C1");
+  await p.locator("#purpose").click();
+  check("live: typing an exact item code picks that item", (await p.getByText("Cement OPC").count()) >= 1);
+  await p.getByRole("button", { name: "Add line" }).click();
+  await p.locator("input[role=combobox]").last().fill("C1");
+  await p.locator("#purpose").click();
+  check("live: same item on two lines shows a warning", (await p.getByText("Also on line 2.").count()) === 1);
+}
+
+// ---- New request form
+let draftId: string | null = null;
+{
+  await p.goto(BASE + "/requests/new");
+  await p.waitForLoadState("networkidle");
   await p.locator("form button[type=submit]").click();
-  const need = ["Choose the date it is needed on site.", "Pick an item or type a description.", "Enter a number above 0, with up to 3 decimals.", "Choose a unit."];
+  const need = ["Choose the date it is needed on site.", "Pick an item or type a description.", "Enter a quantity.", "Choose a unit."];
   const shown = await Promise.all(need.map(async (m) => (await p.getByText(m).count()) > 0));
   check("form: sending empty shows every required-field message", shown.every(Boolean), need.filter((_, i) => !shown[i]).join(" | "));
 
   await p.locator("#rdate").fill(dubaiDate(400));
   await p.locator("form button[type=submit]").click();
-  check("form: date more than 12 months ahead is caught", (await p.getByText("Choose a date within the next 12 months.").count()) === 1);
+  check("form: date more than 12 months ahead is caught", (await p.getByText("Choose a date within 12 months of today.").count()) === 1);
   await p.locator("#rdate").fill(dubaiDate(5));
 
-  const qty = p.locator("input[id^=q-]").first();
-  for (const bad of ["0", "-3", "1.2345", "abc", "1e5", "9999999999"]) {
-    await qty.fill(bad);
-    const ok = (await p.getByText("Enter a number above 0, with up to 3 decimals.").count()) === 1;
-    if (!ok) check(`form: quantity "${bad}" is refused`, false);
-  }
-  await qty.fill("12.5");
-  check("form: bad quantities refused, 12.5 accepted", (await p.getByText("Enter a number above 0, with up to 3 decimals.").count()) === 0);
+  await p.locator("input[id^=q-]").first().fill("12");
 
   await p.locator("#purpose").fill("p".repeat(260));
   const len = (await p.locator("#purpose").inputValue()).length;
@@ -83,7 +122,7 @@ let draftId: string | null = null;
   await p.getByRole("option").first().click();
   await p.locator("#purpose").fill(XSS.slice(0, 200));
   await p.locator("input[role=combobox]").first().fill(XSS.slice(0, 120));
-  await p.getByRole("option").last().click(); // "use as free text"
+  await p.locator("#purpose").click(); // leaving the box keeps it as free text
   await p.locator("button[id^=u-]").first().click();
   await p.getByRole("option", { name: "PCS" }).click();
   await p.getByRole("button", { name: "Save draft" }).click();
@@ -116,7 +155,11 @@ let draftId: string | null = null;
   check("order: supplier and date both required", (await p.getByText("Choose a supplier.").count()) === 1 && (await p.getByText("Choose the agreed delivery date.").count()) === 1);
   await p.locator("#ddate").fill(dubaiDate(400));
   await p.getByRole("dialog").getByRole("button", { name: "Save" }).click();
-  check("order: delivery date more than 12 months ahead is caught", (await p.getByText("Choose a date within the next 12 months.").count()) === 1);
+  check("order: delivery date more than 12 months ahead is caught", (await p.getByText("Choose a date within 12 months of today.").count()) === 1);
+  const req = (await db.from("purchase_requests").select("required_date").eq("id", id2).single()).data!;
+  const later = new Date(`${req.required_date}T00:00:00Z`); later.setUTCDate(later.getUTCDate() + 7);
+  await p.locator("#ddate").fill(later.toISOString().slice(0, 10));
+  check("order: delivery later than the site needs it shows a warning", (await p.getByText("Later than the site needs it").count()) === 1);
   await p.locator("#onote").fill("n".repeat(400));
   check("order: note capped at 300", (await p.locator("#onote").inputValue()).length === 300);
 }

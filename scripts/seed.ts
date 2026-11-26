@@ -13,6 +13,8 @@ function check<R extends { data: unknown; error: { message: string } | null }>(r
   return res.data as NonNullable<R["data"]>;
 }
 
+/** Units measured in fractions; every other unit is counted in whole numbers. */
+const MEASURED = ["TON", "KG", "M3", "LTR", "SQM"];
 const UNITS: [string, string][] = [
   ["PCS", "Pieces"], ["BAG", "Bag"], ["TRIP", "Trip"], ["TANKER", "Tanker"], ["TON", "Ton"],
   ["M3", "Cubic metre"], ["LTR", "Litre"], ["KG", "Kilogram"], ["ROLL", "Roll"], ["PKT", "Packet"],
@@ -135,7 +137,7 @@ async function main() {
   console.log(`Users: ${Object.keys(ids).length}`);
 
   // ---- Master data
-  check(await db.from("units").upsert(UNITS.map(([code, name]) => ({ company_id: companyId, code, name }))), "units");
+  check(await db.from("units").upsert(UNITS.map(([code, name]) => ({ company_id: companyId, code, name, whole_only: !MEASURED.includes(code) }))), "units");
   check(
     await db.from("items").upsert(
       ITEMS.map(([item_code, name, category, default_unit, size]) => ({

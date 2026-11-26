@@ -29,8 +29,9 @@ describe("send", () => {
     await refused("se1", "rpc_send_request", { p_request_id: await draft("se1", "155", { lines: 0 }) }, /at least one line/);
   });
 
-  it("refuses a required date in the past", async () => {
-    await refused("se1", "rpc_send_request", { p_request_id: await draft("se1", "155", { days: -1 }) }, /past/);
+  it("accepts a past required date (back-entry) but not more than 12 months back", async () => {
+    expect((await ok("se1", "rpc_send_request", { p_request_id: await draft("se1", "155", { days: -3 }) })).status).toBe("pending_procurement");
+    await refused("se1", "rpc_send_request", { p_request_id: await draft("se1", "155", { days: -400 }) }, /within 12 months of today/);
   });
 
   it("refuses urgent without a reason", async () => {
@@ -127,11 +128,11 @@ describe("separation of duties", () => {
 });
 
 describe("order and receipt", () => {
-  it("record order: Procurement only, no past dates; updates are logged", async () => {
+  it("record order: Procurement only, past dates allowed within 12 months; updates are logged", async () => {
     const id = await requestAt("approved_sourcing");
     const sup = await supplierId();
     await refused("se1", "rpc_record_order", { p_request_id: id, p_supplier_id: sup, p_delivery_date: dubaiDate(2) }, /Only Procurement/);
-    await refused("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: sup, p_delivery_date: dubaiDate(-1) }, /past/);
+    await refused("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: sup, p_delivery_date: dubaiDate(-400) }, /within 12 months of today/);
     expect((await ok("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: sup, p_delivery_date: dubaiDate(2) })).status).toBe("ordered");
     await ok("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: sup, p_delivery_date: dubaiDate(4) });
     const { data } = await admin.from("activity_log").select("action").eq("request_id", id).order("created_at");

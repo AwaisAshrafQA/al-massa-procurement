@@ -347,6 +347,14 @@ export const AR: Record<string, string> = {
   "The required date must be within the next 12 months.": "يجب أن يكون تاريخ الحاجة خلال الأشهر الاثني عشر القادمة.",
   "The delivery date must be within the next 12 months.": "يجب أن يكون تاريخ التسليم خلال الأشهر الاثني عشر القادمة.",
   "A request can have at most 50 lines.": "يمكن أن يحتوي الطلب على 50 بنداً كحد أقصى.",
+  "Also on line {n}. Combine them unless the spec differs.": "موجود أيضاً في البند {n}. اجمعهما ما لم تختلف المواصفات.",
+  "Later than the site needs it ({date}).": "بعد التاريخ الذي يحتاجه الموقع ({date}).",
+  "Enter a quantity.": "أدخل الكمية.",
+  "{unit} is counted in whole numbers.": "تُحسب {unit} بأعداد صحيحة.",
+  "Choose a date within 12 months of today.": "اختر تاريخاً في حدود 12 شهراً من اليوم.",
+  "This date has passed. That's fine when entering an earlier request.": "هذا التاريخ قد مضى، ولا بأس بذلك عند إدخال طلب سابق.",
+  "The required date must be within 12 months of today.": "يجب أن يكون تاريخ الحاجة في حدود 12 شهراً من اليوم.",
+  "The delivery date must be within 12 months of today.": "يجب أن يكون تاريخ التسليم في حدود 12 شهراً من اليوم.",
 };
 
 /** Database messages built from parts (see _require_status, _require_comment, _not_own_request). */
@@ -361,6 +369,7 @@ const FIELD: Record<string, string> = {
   "Size / spec": "المقاس / المواصفات", "Line notes": "ملاحظات البند", "The comment": "التعليق", "Delivery notes": "ملاحظات التسليم",
 };
 export const AR_PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [/^Quantity in (.+) must be a whole number.$/, (m) => `يجب أن تكون الكمية بوحدة ${m[1]} عدداً صحيحاً.`],
   [/^(.+) must be (d+) characters or fewer.$/, (m) => `${FIELD[m[1]] ?? m[1]}: الحد الأقصى ${m[2]} حرفاً.`],
   [/^Cannot (.+): the request is currently "(.+)"\.$/, (m) => `لا يمكن ${VERB[m[1]] ?? m[1]}: حالة الطلب حالياً «${m[2]}».`],
   [/^A comment is required to (.+)\.$/, (m) => `التعليق مطلوب من أجل ${VERB[m[1]] ?? m[1]}.`],

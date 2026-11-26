@@ -32,6 +32,7 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
+  const [left, setLeft] = useState({ email: false, password: false });
   const emailError = !email.trim() ? t("Enter your company email.") : !validEmail(email) ? t("Enter a valid email address, e.g. name@company.com.") : null;
   const passwordError = !password ? t("Enter your password.") : null;
 
@@ -93,8 +94,8 @@ export function Login() {
             if (fresh && !err) nav(fresh, { replace: true });
           }}
         >
-          <Field label={t("Company email")} htmlFor="email" error={tried ? emailError : null}>
-            <Input id="email" type="email" dir="ltr" autoComplete="username" inputMode="email" maxLength={LIMITS.email} aria-invalid={tried && !!emailError} value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Field label={t("Company email")} htmlFor="email" error={tried || left.email ? emailError : null}>
+            <Input id="email" type="email" dir="ltr" autoComplete="username" inputMode="email" maxLength={LIMITS.email} aria-invalid={(tried || left.email) && !!emailError} onBlur={() => email && setLeft((l) => ({ ...l, email: true }))} value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
           <Field label={t("Password")} htmlFor="password" error={tried ? passwordError : null}>
             <Input id="password" type="password" dir="ltr" autoComplete="current-password" maxLength={LIMITS.password} aria-invalid={tried && !!passwordError} value={password} onChange={(e) => setPassword(e.target.value)} />

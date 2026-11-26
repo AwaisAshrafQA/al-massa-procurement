@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { listSuppliers, rpc, type RequestDetail } from "@/lib/api";
 import { useAuth, type Me } from "@/lib/auth";
 import { celebrate } from "@/lib/confetti";
-import { todayDubai } from "@/lib/format";
+import { fmtDate, todayDubai } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { addDays, LIMITS } from "@/lib/limits";
 import { useToast } from "./Toast";
@@ -167,7 +167,7 @@ function CommentDialog({ action, busy, error, onClose, onSubmit }: {
         className="space-y-4"
       >
         <Field label={t(action.commentLabel ?? "Comment")} htmlFor="comment" required={action.commentRequired} error={touched && missing ? t("A comment is required.") : null} count={{ value: text, max }}>
-          <Textarea id="comment" rows={3} maxLength={max} value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+          <Textarea id="comment" rows={3} maxLength={max} value={text} onBlur={() => setTouched(true)} aria-invalid={touched && !!missing} onChange={(e) => setText(e.target.value)} autoFocus />
         </Field>
         {error && <Alert>{error}</Alert>}
         <div className="flex gap-2">
@@ -188,9 +188,11 @@ function OrderDialog({ request, action, busy, error, onClose, onSubmit }: {
   const [date, setDate] = useState(request.procurement_details?.agreed_delivery_date ?? "");
   const [comment, setComment] = useState("");
   const [touched, setTouched] = useState(false);
+  const [dateTouched, setDateTouched] = useState(false);
   const today = todayDubai();
+  const minDate = addDays(today, -LIMITS.daysAhead);
   const maxDate = addDays(today, LIMITS.daysAhead);
-  const dateError = !date ? t("Choose the agreed delivery date.") : date < today ? t("Choose today or a later date.") : date > maxDate ? t("Choose a date within the next 12 months.") : null;
+  const dateError = !date ? t("Choose the agreed delivery date.") : date < minDate || date > maxDate ? t("Choose a date within 12 months of today.") : null;
   return (
     <Dialog open onClose={onClose} title={t(action.label)}>
       <form
@@ -208,8 +210,10 @@ function OrderDialog({ request, action, busy, error, onClose, onSubmit }: {
             {suppliers.data?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </Select>
         </Field>
-        <Field label={t("Agreed delivery date")} htmlFor="ddate" required error={touched ? dateError : null}>
-          <Input id="ddate" type="date" min={today} max={maxDate} value={date} onChange={(e) => setDate(e.target.value)} />
+        <Field label={t("Agreed delivery date")} htmlFor="ddate" required error={touched || dateTouched ? dateError : null}
+          warning={date && !dateError && date > request.required_date ? t("Later than the site needs it ({date}).", { date: fmtDate(request.required_date) }) : null}>
+          <Input id="ddate" type="date" min={minDate} max={maxDate} value={date} aria-invalid={(touched || dateTouched) && !!dateError}
+            onChange={(e) => { setDate(e.target.value); if (e.target.value.length === 10) setDateTouched(true); }} onBlur={() => setDateTouched(true)} />
         </Field>
         <Field label={t("Note (optional)")} htmlFor="onote" count={{ value: comment, max: LIMITS.orderNote }}>
           <Input id="onote" maxLength={LIMITS.orderNote} value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("e.g. quotation ref, contact person")} />

@@ -100,10 +100,11 @@ describe("tampering through the table API", () => {
 });
 
 describe("order details", () => {
-  it("delivery date today is accepted, yesterday refused", async () => {
+  it("delivery date: past (back-entry) and today accepted; over 12 months back refused", async () => {
     const id = await requestAt("approved_sourcing");
     const sup = await supplierId();
-    await refused("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: sup, p_delivery_date: dubaiDate(-1) }, /past/);
+    await refused("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: sup, p_delivery_date: dubaiDate(-400) }, /within 12 months of today/);
+    await ok("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: sup, p_delivery_date: dubaiDate(-5) });
     await ok("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: sup, p_delivery_date: dubaiDate(0) });
   });
 });
@@ -157,7 +158,7 @@ describe("input limits and injection attempts", () => {
 
   it("required date more than 12 months ahead is refused on send", async () => {
     const id = await draft("se1", "155", { days: 400 });
-    await refused("se1", "rpc_send_request", { p_request_id: id }, /within the next 12 months/);
+    await refused("se1", "rpc_send_request", { p_request_id: id }, /within 12 months of today/);
   });
 
   it("more than 50 lines is refused on send", async () => {
@@ -167,11 +168,22 @@ describe("input limits and injection attempts", () => {
 
   it("delivery date more than 12 months ahead is refused", async () => {
     const id = await requestAt("approved_sourcing");
-    await refused("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: await supplierId(), p_delivery_date: dubaiDate(400) }, /within the next 12 months/);
+    await refused("proc1", "rpc_record_order", { p_request_id: id, p_supplier_id: await supplierId(), p_delivery_date: dubaiDate(400) }, /within 12 months of today/);
   });
 
   it("receipt notes over 1,000 characters are refused", async () => {
     const id = await requestAt("ordered");
     await refused("se1", "rpc_confirm_receipt", { p_request_id: id, p_notes: long(1001) }, /Delivery notes must be 1000/);
+  });
+});
+
+describe("whole-number units", () => {
+  it("2.5 PCS is refused, 2.5 KG is fine, 3 PCS is fine", async () => {
+    const c = await as("se1");
+    const id = await draft("se1", "155", { lines: 0 });
+    const line = { request_id: id, line_no: 1, description: "x" };
+    expect((await c.from("request_lines").insert({ ...line, unit: "PCS", qty: 2.5 })).error?.message).toMatch(/Quantity in PCS must be a whole number/);
+    expect((await c.from("request_lines").insert({ ...line, unit: "KG", qty: 2.5 })).error).toBeNull();
+    expect((await c.from("request_lines").insert({ ...line, line_no: 2, unit: "PCS", qty: 3 })).error).toBeNull();
   });
 });

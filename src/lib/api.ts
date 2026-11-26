@@ -119,7 +119,7 @@ export async function listRecentEvents(limit = 8): Promise<RecentEvent[]> {
 }
 
 export type Item = { id: string; item_code: string; name: string; category: string | null; default_unit: string; size: string | null };
-export type Unit = { code: string; name: string };
+export type Unit = { code: string; name: string; whole_only: boolean };
 export type Project = {
   id: string; project_no: string; name: string; location: string | null; status: string; pm_user_id: string | null;
   lat?: number | null; lng?: number | null; pm?: { full_name: string } | null;
@@ -133,7 +133,7 @@ export async function listItems(): Promise<Item[]> {
 }
 
 export async function listUnits(): Promise<Unit[]> {
-  const { data, error } = await supabase.from("units").select("code,name").order("code");
+  const { data, error } = await supabase.from("units").select("code,name,whole_only").order("code");
   if (error) throw error;
   return data as Unit[];
 }

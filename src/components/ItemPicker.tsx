@@ -9,12 +9,14 @@ import { cn } from "./ui";
 type Value = { itemId: string | null; description: string | null };
 
 /** Search the catalogue by code or name; anything not found can be used as free text. */
-export function ItemPicker({ items, value, onPick, invalid, id }: {
+export function ItemPicker({ items, value, onPick, invalid, id, onLeave }: {
   items: Item[];
   value: Value;
   onPick: (v: { item: Item | null; description: string | null }) => void;
   invalid?: boolean;
   id?: string;
+  /** Called when focus leaves the search box (to show validation). */
+  onLeave?: () => void;
 }) {
   const { t } = useI18n();
   const [q, setQ] = useState("");
@@ -98,7 +100,18 @@ export function ItemPicker({ items, value, onPick, invalid, id }: {
             setTimeout(() => inputRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }), 50);
           }
         }}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onBlur={() => {
+          // Never silently throw away what was typed: an exact code match picks that item,
+          // anything else is kept as a free-text description.
+          const text = q.trim();
+          if (text) {
+            const exact = items.find((i) => i.item_code.toLowerCase() === text.toLowerCase());
+            onPick(exact ? { item: exact, description: null } : { item: null, description: text });
+            setQ("");
+          }
+          onLeave?.();
+          setTimeout(() => setOpen(false), 150);
+        }}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, choices.length - 1)); }
           if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }

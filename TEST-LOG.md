@@ -238,3 +238,28 @@ Checked at 360 and 1280 px: tap to pick, keyboard pick, Esc leaves the value unc
 - `tests/edge.test.ts`: 24 tests. These cover limits at and over each boundary, stripped control and bidi characters, and HTML/script/SQL strings stored verbatim with nothing altered or run.
 - `scripts/validation-check.ts`: 13 browser checks. Every form's messages and caps are tested, and HTML/script/SQL saved through the form is shown as plain text and never runs.
 - `scripts/csp-check.ts`: the policy is applied to the production build. Sign-in, every page, fonts and the theme script work with 0 policy violations.
+
+## 15. Live validation while typing, 26 Nov 2026
+
+Reported: negative quantities could be typed, and messages only appeared after pressing Send.
+
+| # | Gap | Fix |
+|---|---|---|
+| 1 | Quantity accepted "-5", letters, "1e5"; "1,500" was silently read as 1.5 | The box cleans input as it is typed: only digits and one dot, up to 3 decimals and 9 whole digits; Arabic digits and the Arabic decimal mark converted; thousands commas dropped ("1,500" stays 1500). |
+| 2 | Fractions allowed for counted units (2.5 PCS, 1.5 BAG) | Units now know whether they are counted or measured (migration `20261126000008_whole_units.sql`). PCS, BAG, ROLL, SET, DRUM, CTN, TRIP, TANKER and similar must be whole numbers; TON, KG, M3, LTR and SQM may have decimals. Enforced in the database and shown live in the form. |
+| 3 | Messages only after pressing Send | Every field shows its message once you leave it (or as soon as a date is picked), then updates live as you type. Invalid fields also get a red border. Applies to the request form, comment and supplier pop-ups, and sign-in. |
+| 4 | Text typed in the item search was silently lost if no suggestion was tapped | Leaving the box keeps the text as a free-text description; typing an exact code (e.g. C1) picks that item. |
+| 5 | Same catalogue item on two lines went unnoticed | Amber warning "Also on line 2. Combine them unless the spec differs." (non-blocking). |
+| 6 | A delivery date after the site's required date went unnoticed | Amber warning in the supplier pop-up, e.g. "Later than the site needs it (1 Dec 2026)." (non-blocking). |
+
+Proof:
+
+- `scripts/validation-check.ts`: 21 browser checks. These type "-5", "abc", "1e5", "1,500", "٣٫٥", "2.34567", "--1.2.3" and "007" and check the cleaned value. They also check that messages appear on leaving a field, the PCS/KG rule, past dates, kept free text, code pick, the duplicate warning and the late-delivery warning.
+- `tests/edge.test.ts`: 25 tests, including 2.5 PCS refused by the database, 2.5 KG accepted.
+
+**Update, same day: past dates allowed for back-entry** (migration `20261126000009_allow_past_dates.sql`). Requests for previous days can now be entered:
+
+- **Required date:** may be in the past. The form shows an amber note, "This date has passed. That's fine when entering an earlier request.", which does not block.
+- **Agreed delivery date:** may also be in the past.
+- **Sanity range:** both dates must be within 12 months either side of today, so a mistyped year is still caught. This is enforced in the database and shown in the form.
+- **Tests:** the workflow and edge tests now check that a past date is accepted and that more than 12 months back is refused.

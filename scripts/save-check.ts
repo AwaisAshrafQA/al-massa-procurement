@@ -41,14 +41,19 @@ try {
   const after = await lines();
   check("edit keeps all lines and saves the new quantity", after.length === 3 && Number(after[1].qty) === 25, JSON.stringify(after));
 
-  // 2. oversized quantity is stopped by the form
+  // 2. oversized quantity can't be typed; a half-finished line blocks the draft save, nothing is lost
   await p.goto(`${BASE}/requests/${id}/edit`);
   await qty.nth(0).waitFor();
   await qty.nth(0).fill("10000000000");
+  const capped = await qty.nth(0).inputValue();
+  await qty.nth(0).fill("");
   await p.getByRole("button", { name: "Save draft" }).click();
   await p.waitForTimeout(1500);
-  const big = await p.getByText("Enter a number above 0, with up to 3 decimals.").count();
-  check("oversized quantity is flagged and nothing is lost", big > 0 && (await lines()).length === 3);
+  if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT, fullPage: true });
+  const blocked = await p.getByText("Finish or remove the highlighted lines before saving.").waitFor({ timeout: 8000 }).then(() => 1, () => 0);
+  const keptDraft = await lines();
+  check("oversized quantity is capped; an unfinished line blocks saving and nothing is lost",
+    capped === "100000000" && blocked > 0 && keptDraft.length === 3 && Number(keptDraft[0].qty) === 1, `capped to ${capped}, blocked ${blocked}, lines ${JSON.stringify(keptDraft)}`);
 
   // 3. someone sends it while the form is open, then the form is saved
   await p.goto(`${BASE}/requests/${id}/edit`);
