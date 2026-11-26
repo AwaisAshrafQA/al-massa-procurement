@@ -185,3 +185,14 @@ After the fixes: 170 screens (17 per width × 5 widths × 2 languages), 0 with s
 | 6 | Request details used nested wrappers inside the definition list. | Flattened to one wrapper per label and value. |
 
 Drill-down and form-save checks still pass.
+
+## 13. App-drawn dropdowns (`scripts/dropdown-check.ts`), 26 Nov 2026: all pass
+
+Native dropdown lists are drawn by the browser, not the app: desktop Chrome showed them at desktop size inside a phone-sized window (spilling past the screen with oversized text), and each phone shows its own picker. All dropdowns (project, unit, supplier, the My requests and Inbox filters) now use one app-drawn list that:
+
+- looks the same on every device, in light and dark, English and Arabic (opens right-to-left);
+- always stays on screen and opens upwards when there is no room below; sits above sheets and the bottom bar;
+- never offers prompts such as "Select project…" as a choice;
+- works by keyboard (arrows, Home/End, type-ahead, Enter/Space, Esc) and is announced as a list box to screen readers.
+
+Checked at 360 and 1280 px: tap to pick, keyboard pick, Esc leaves the value unchanged, type-ahead, tap outside closes, list fully on screen (top and lower fields, and inside the order sheet), status filter shows only matching requests.

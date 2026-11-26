@@ -100,7 +100,7 @@ async function main() {
   await page.getByRole("link", { name: "New", exact: true }).click();
   await page.waitForLoadState("networkidle");
   await caption(page, "New request: kept short so it takes under two minutes on site", 1800);
-  await page.locator("#project").selectOption({ label: "155 · Villa Complex (Al Ain)" });
+  await page.locator("#project").click(); await page.getByRole("option", { name: "155 · Villa Complex (Al Ain)" }).click();
   await page.locator("#rdate").fill(dubaiDate(2));
   await page.getByRole("radio", { name: "Urgent" }).click();
   await page.locator("#reason").pressSequentially("Curing water for slab pour", { delay: 30 });
@@ -119,7 +119,7 @@ async function main() {
   await pause(900);
   await pickers.first().press("Enter");
   await page.locator("input[inputmode=decimal]").nth(1).pressSequentially("10", { delay: 80 });
-  await page.locator("select[id^=u-]").nth(1).selectOption("ROLL");
+  await page.locator("button[id^=u-]").nth(1).click(); await page.getByRole("option", { name: /^ROLL/ }).click();
   await pause(800);
   await page.getByRole("button", { name: "Send to Procurement" }).click();
   await page.waitForURL(/\/requests\/[0-9a-f-]{36}$/);
@@ -157,7 +157,7 @@ async function main() {
   await open(page, reqPath);
   await page.getByRole("button", { name: "Record supplier & delivery" }).click();
   const dlg = page.getByRole("dialog");
-  await dlg.locator("#supplier").selectOption({ label: "Desert Water Transport (demo)" });
+  await dlg.locator("#supplier").click(); await page.getByRole("option", { name: "Desert Water Transport (demo)" }).click();
   await dlg.locator("#ddate").fill(dubaiDate(1));
   await dlg.locator("#onote").pressSequentially("Quote by phone", { delay: 30 });
   await pause(700);

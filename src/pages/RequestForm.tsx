@@ -153,7 +153,7 @@ export function RequestForm() {
       <Card className="animate-fade-up space-y-4 p-4" style={{ animationDelay: "60ms" }}>
         <Field label={t("Project")} htmlFor="project" required error={tried ? errors.project : null}>
           <Select id="project" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-            <option value="">{t("Select project…")}</option>
+            <option value="" disabled>{t("Select project…")}</option>
             {myProjects.map((p) => <option key={p.id} value={p.id}>{p.project_no} · {p.name}{p.location ? ` (${p.location})` : ""}</option>)}
           </Select>
         </Field>
@@ -217,7 +217,7 @@ export function RequestForm() {
                 </Field>
                 <Field label={t("Unit")} htmlFor={`u-${l.key}`} required error={tried && e.unit ? t("Choose a unit.") : null}>
                   <Select id={`u-${l.key}`} value={l.unit} onChange={(ev) => update(l.key, { unit: ev.target.value })}>
-                    <option value="">{t("Unit…")}</option>
+                    <option value="" disabled>{t("Unit…")}</option>
                     {units.data?.map((u) => <option key={u.code} value={u.code}>{u.code}</option>)}
                   </Select>
                 </Field>

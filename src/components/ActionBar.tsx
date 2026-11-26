@@ -199,7 +199,7 @@ function OrderDialog({ request, action, busy, error, onClose, onSubmit }: {
       >
         <Field label={t("Supplier")} htmlFor="supplier" required error={touched && !supplier ? t("Choose a supplier.") : null}>
           <Select id="supplier" value={supplier} onChange={(e) => setSupplier(e.target.value)}>
-            <option value="">{t("Select supplier…")}</option>
+            <option value="" disabled>{t("Select supplier…")}</option>
             {suppliers.data?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </Select>
         </Field>

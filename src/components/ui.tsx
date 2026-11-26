@@ -1,6 +1,9 @@
 import { clsx } from "clsx";
-import { Loader2, X } from "lucide-react";
-import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { Check, ChevronDown, Loader2, X } from "lucide-react";
+import {
+  Children, Fragment, isValidElement, useCallback, useEffect, useId, useMemo, useRef, useState,
+  type ButtonHTMLAttributes, type ChangeEvent, type InputHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type TextareaHTMLAttributes,
+} from "react";
 import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 import { translate } from "@/lib/i18n";
@@ -43,24 +46,172 @@ export function Input({ className, ...p }: InputHTMLAttributes<HTMLInputElement>
   return <input {...p} className={cn(field, className)} />;
 }
 
-// One look for every dropdown on every phone: no native chrome (iOS draws its own grey
-// bubble, Chrome jams its arrow against the edge), our own chevron on the reading-end side,
-// and long option text cut with an ellipsis instead of overlapping the arrow.
-const CHEVRON = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z' clip-rule='evenodd'/%3E%3C/svg%3E")`;
-export function Select({ className, children, style, ...p }: SelectHTMLAttributes<HTMLSelectElement>) {
+// App-drawn dropdown. Native <select> lists are drawn by the browser: desktop Chrome shows
+// them at desktop size even in a phone-sized window (spilling past the screen), and every
+// phone has its own picker. This one looks the same everywhere, stays on screen (opens
+// upwards when there is no room below), follows Arabic right-to-left, and keeps the
+// <select> API (<option> children, onChange(e) with e.target.value), so call sites are unchanged.
+// Keyboard: arrows / Home / End / type-ahead, Enter or Space to choose, Esc to close.
+// A disabled <option> is a prompt ("Select project…"): shown on the button while nothing is
+// chosen, never offered in the list.
+type Opt = { value: string; label: string; prompt: boolean };
+function optionsFrom(children: ReactNode): Opt[] {
+  const out: Opt[] = [];
+  Children.forEach(children, (c) => {
+    if (!isValidElement(c)) return;
+    const p = c.props as { value?: string | number; children?: ReactNode; disabled?: boolean };
+    if (c.type === Fragment) { out.push(...optionsFrom(p.children)); return; }
+    out.push({ value: String(p.value ?? ""), label: Children.toArray(p.children).join(""), prompt: !!p.disabled });
+  });
+  return out;
+}
+
+type SelectProps = {
+  id?: string;
+  value?: string;
+  onChange?: (e: ChangeEvent<HTMLSelectElement>) => void;
+  children: ReactNode;
+  className?: string;
+  disabled?: boolean;
+  "aria-label"?: string;
+  "aria-invalid"?: boolean;
+};
+
+export function Select({ id, value = "", onChange, children, className, disabled, ...aria }: SelectProps) {
+  const all = useMemo(() => optionsFrom(children), [children]);
+  const opts = useMemo(() => all.filter((o) => !o.prompt), [all]);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const [pos, setPos] = useState<{ left: number; top?: number; bottom?: number; width: number; maxH: number } | null>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLUListElement>(null);
+  const typed = useRef({ s: "", t: 0 });
+  const listId = useId();
+  const current = all.find((o) => o.value === value) ?? all[0];
+
+  const place = useCallback(() => {
+    const el = btn.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight, margin = 8, gap = 6;
+    const want = Math.min(288, opts.length * 44 + 8);
+    const below = vh - r.bottom - margin - gap, above = r.top - margin - gap;
+    const up = below < Math.min(want, 220) && above > below;
+    const maxH = Math.max(132, Math.min(288, up ? above : below));
+    const width = Math.min(Math.max(r.width, 176), vw - margin * 2);
+    const rtl = document.documentElement.dir === "rtl";
+    const left = Math.min(Math.max(margin, rtl ? r.right - width : r.left), vw - margin - width);
+    setPos(up ? { left, bottom: vh - r.top + gap, width, maxH } : { left, top: r.bottom + gap, width, maxH });
+  }, [opts.length]);
+
+  function show() {
+    if (disabled) return;
+    typed.current = { s: "", t: 0 };
+    place();
+    setActive(Math.max(0, opts.findIndex((o) => o.value === value)));
+    setOpen(true);
+  }
+  function pick(i: number) {
+    const o = opts[i];
+    setOpen(false);
+    btn.current?.focus();
+    if (o && o.value !== value) onChange?.({ target: { value: o.value }, currentTarget: { value: o.value } } as unknown as ChangeEvent<HTMLSelectElement>);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!btn.current?.contains(t) && !list.current?.contains(t)) setOpen(false);
+    };
+    const follow = (e: Event) => { if (!(e.target instanceof Node && list.current?.contains(e.target))) place(); };
+    document.addEventListener("pointerdown", outside);
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", follow, true);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", follow, true);
+    };
+  }, [open, place]);
+
+  useEffect(() => {
+    if (open) list.current?.querySelector<HTMLElement>(`[data-i="${active}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [open, active]);
+
+  function onKey(e: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (!open) {
+      if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) { e.preventDefault(); show(); }
+      return;
+    }
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setOpen(false); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, opts.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
+    else if (e.key === "Home") { e.preventDefault(); setActive(0); }
+    else if (e.key === "End") { e.preventDefault(); setActive(opts.length - 1); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(active); }
+    else if (e.key === "Tab") setOpen(false);
+    else if (e.key.length === 1) {
+      const now = Date.now();
+      typed.current = { s: (now - typed.current.t < 700 ? typed.current.s : "") + e.key.toLowerCase(), t: now };
+      const i = opts.findIndex((o) => o.label.toLowerCase().startsWith(typed.current.s));
+      if (i >= 0) setActive(i);
+    }
+  }
+
   return (
-    <select
-      {...p}
-      style={{ backgroundImage: CHEVRON, ...style }}
-      className={cn(
-        field,
-        "cursor-pointer appearance-none truncate bg-[length:1.15rem] bg-no-repeat pe-10",
-        "bg-[position:right_0.8rem_center] rtl:bg-[position:left_0.8rem_center]",
-        className,
+    <>
+      <button
+        type="button"
+        id={id}
+        ref={btn}
+        disabled={disabled}
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-activedescendant={open ? `${listId}-${active}` : undefined}
+        aria-label={aria["aria-label"]}
+        aria-invalid={aria["aria-invalid"]}
+        onClick={() => (open ? setOpen(false) : show())}
+        onKeyDown={onKey}
+        className={cn(field, "flex min-h-11 cursor-pointer items-center gap-2 text-start", open && "shadow-glow ring-2 ring-brand-500", className)}
+      >
+        <span className={cn("min-w-0 flex-1 truncate", !value && "text-slate-500")}>{current?.label}</span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-500 transition-transform duration-150", open && "rotate-180")} aria-hidden />
+      </button>
+      {open && pos && createPortal(
+        <ul
+          ref={list}
+          id={listId}
+          role="listbox"
+          aria-label={aria["aria-label"]}
+          style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxH }}
+          className="z-[90] animate-scale-in overflow-y-auto overscroll-contain rounded-xl bg-white p-1 text-sm text-slate-800 shadow-lift ring-1 ring-slate-200"
+        >
+          {opts.map((o, i) => (
+            <li
+              key={`${o.value}-${i}`}
+              id={`${listId}-${i}`}
+              data-i={i}
+              role="option"
+              aria-selected={o.value === value}
+              onPointerEnter={() => setActive(i)}
+              onClick={() => pick(i)}
+              className={cn(
+                "flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 py-2",
+                i === active && "bg-brand-50",
+                o.value === value && "font-semibold text-brand-700",
+              )}
+            >
+              <span className="min-w-0 flex-1">{o.label}</span>
+              {o.value === value && <Check className="h-4 w-4 shrink-0" aria-hidden />}
+            </li>
+          ))}
+        </ul>,
+        document.body,
       )}
-    >
-      {children}
-    </select>
+    </>
   );
 }
 export function Textarea({ className, ...p }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
